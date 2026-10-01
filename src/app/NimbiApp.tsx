@@ -275,6 +275,26 @@ export function NimbiApp({
     [nativeRuntime],
   );
 
+  const handlePresenceChange = (idleOpacity: number) => {
+    if (!nativeRuntime) return;
+    void invoke("set_preferences", {
+      preferences: {
+        ...nativePreferences.preferences,
+        presence: { idleOpacity },
+      },
+    });
+  };
+
+  const handleResetPlacement = () => {
+    if (!nativeRuntime) return;
+    void invoke("set_preferences", {
+      preferences: {
+        ...nativePreferences.preferences,
+        placement: DEFAULT_PLACEMENT,
+      },
+    });
+  };
+
   const handleToggle = () => {
     if (suppressToggleRef.current) return;
     if (onToggle) {
@@ -303,6 +323,8 @@ export function NimbiApp({
       onCharacterPointerDown={
         onCharacterPointerDown ?? handleNativeCharacterPointerDown
       }
+      onPresenceChange={nativeRuntime ? handlePresenceChange : undefined}
+      onResetPlacement={nativeRuntime ? handleResetPlacement : undefined}
     />
   );
 }
