@@ -304,4 +304,42 @@ describe("DynamicIsland", () => {
       mode,
     );
   });
+
+  it("renders Cloudee as the primary avatar and preserves tap versus drag", () => {
+    const onAvatarTap = vi.fn();
+    const onAvatarGrab = vi.fn();
+    const onAvatarDragging = vi.fn();
+    const onAvatarRelease = vi.fn();
+    const onToggle = vi.fn();
+
+    render(
+      <DynamicIsland
+        snapshot={NIMBI_FIXTURES.thinking}
+        mode="compact"
+        behavior="thinking"
+        onAvatarTap={onAvatarTap}
+        onAvatarGrab={onAvatarGrab}
+        onAvatarDragging={onAvatarDragging}
+        onAvatarRelease={onAvatarRelease}
+        onToggle={onToggle}
+      />,
+    );
+
+    const avatar = screen.getByRole("img", { name: "Nimbi: thinking" });
+    expect(avatar).toHaveAttribute("data-avatar", "cloudee");
+
+    const character = screen.getByTestId("nimbi-character");
+    fireEvent.pointerDown(character, { clientX: 100, clientY: 10, pointerId: 1 });
+    expect(onAvatarGrab).toHaveBeenCalledTimes(1);
+    fireEvent.pointerMove(character, { clientX: 105, clientY: 10, pointerId: 1 });
+    expect(onAvatarDragging).not.toHaveBeenCalled();
+    fireEvent.pointerMove(character, { clientX: 107, clientY: 10, pointerId: 1 });
+    expect(onAvatarDragging).toHaveBeenCalledTimes(1);
+    fireEvent.pointerUp(character, { clientX: 120, clientY: 40, pointerId: 1 });
+    expect(onAvatarRelease).toHaveBeenCalledTimes(1);
+    fireEvent.click(screen.getByTestId("nimbi-island"));
+    expect(onAvatarTap).not.toHaveBeenCalled();
+    expect(onToggle).not.toHaveBeenCalled();
+  });
+
 });
