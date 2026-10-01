@@ -106,6 +106,7 @@ describe("placement model", () => {
     expect(top.x).toBeGreaterThanOrEqual(0);
     expect(top.x + top.width).toBeLessThanOrEqual(viewport.width);
     expect(top.y).toBe(0);
+    expect(top.x + top.anchorX).toBeCloseTo(viewport.width * 0.98);
 
     const floating = hostRectForPlacement(
       { mode: "floating", x: 0.99, y: 0.99 },
@@ -113,6 +114,8 @@ describe("placement model", () => {
     );
     expect(floating.x + floating.width).toBeLessThanOrEqual(viewport.width);
     expect(floating.y + floating.height).toBeLessThanOrEqual(viewport.height);
+    expect(floating.x + floating.anchorX).toBeCloseTo(viewport.width * 0.99);
+    expect(floating.y + floating.anchorY).toBeCloseTo(viewport.height * 0.99);
   });
 });
 
