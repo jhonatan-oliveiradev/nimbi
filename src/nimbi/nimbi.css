@@ -5,6 +5,7 @@
   overflow: visible;
   transform-origin: 50% 72%;
   filter: drop-shadow(0 4px 8px rgb(126 110 255 / 14%));
+  transition: opacity 600ms cubic-bezier(.2,.8,.2,1);
 }
 
 .nimbi-cloud__body {
