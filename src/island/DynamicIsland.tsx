@@ -286,6 +286,7 @@ export function DynamicIsland({
     const wasDragging = drag.dragging;
     drag.end(pointFromEvent(event));
     if (wasDragging) onAvatarRelease?.();
+    else onAvatarDragCancel?.();
     if (event.currentTarget.hasPointerCapture?.(event.pointerId)) {
       event.currentTarget.releasePointerCapture?.(event.pointerId);
     }
@@ -343,10 +344,7 @@ export function DynamicIsland({
         onPointerDown={handleCharacterPointerDown}
         onPointerMove={handleCharacterPointerMove}
         onPointerUp={handleCharacterPointerUp}
-        onPointerCancel={() => {
-          drag.cancel();
-          onAvatarDragCancel?.();
-        }}
+        onPointerCancel={() => drag.cancel()}
       >
         <NimbiAvatar
           behavior={behavior ?? (
