@@ -12,7 +12,6 @@ import {
   type CloudeeExpression,
 } from "./cloudee-definition";
 import { safeTargetForBehavior } from "./nimbi-avatar-adapter";
-import "./nimbi-avatar.css";
 
 export interface NimbiAvatarProps {
   behavior: NimbiBehavior;
@@ -197,33 +196,17 @@ function Eyes({
   );
 }
 
-export function NimbiAvatar({
+function RenderedNimbiAvatar({
   behavior,
   activity,
   reducedMotion = false,
   hidden = false,
   passiveOpacity = 0.72,
   interaction = "passive",
-  pointer,
-  bounds,
   className = "",
-  definition = NIMBI_CLOUDEE_DEFINITION,
-}: NimbiAvatarProps) {
-  if (!usableDefinition(definition)) {
-    return (
-      <NimbiCloud
-        activity={activity}
-        pointer={pointer}
-        bounds={bounds}
-        reducedMotion={reducedMotion}
-        hidden={hidden}
-        passiveOpacity={passiveOpacity}
-        interaction={interaction}
-        className={className}
-      />
-    );
-  }
-
+  definition,
+}: Required<Pick<NimbiAvatarProps, "behavior" | "activity" | "definition">> &
+  Omit<NimbiAvatarProps, "behavior" | "activity" | "definition" | "pointer" | "bounds">) {
   const target = safeTargetForBehavior(behavior, reducedMotion, definition);
   const expressionKey = useAnimatedExpression(
     definition,
@@ -257,7 +240,7 @@ export function NimbiAvatar({
       data-effective-opacity={String(opacity)}
       className={`nimbi-avatar ${className}`.trim()}
       viewBox="-150 -150 300 300"
-      style={{ opacity }}
+      style={{ opacity, display: "block", width: "100%", height: "100%", overflow: "visible" }}
       initial={false}
     >
       <motion.g
@@ -280,5 +263,46 @@ export function NimbiAvatar({
         />
       </motion.g>
     </motion.svg>
+  );
+}
+
+export function NimbiAvatar({
+  behavior,
+  activity,
+  reducedMotion = false,
+  hidden = false,
+  passiveOpacity = 0.72,
+  interaction = "passive",
+  pointer,
+  bounds,
+  className = "",
+  definition = NIMBI_CLOUDEE_DEFINITION,
+}: NimbiAvatarProps) {
+  if (!usableDefinition(definition)) {
+    return (
+      <NimbiCloud
+        activity={activity}
+        pointer={pointer}
+        bounds={bounds}
+        reducedMotion={reducedMotion}
+        hidden={hidden}
+        passiveOpacity={passiveOpacity}
+        interaction={interaction}
+        className={className}
+      />
+    );
+  }
+
+  return (
+    <RenderedNimbiAvatar
+      behavior={behavior}
+      activity={activity}
+      reducedMotion={reducedMotion}
+      hidden={hidden}
+      passiveOpacity={passiveOpacity}
+      interaction={interaction}
+      className={className}
+      definition={definition}
+    />
   );
 }
