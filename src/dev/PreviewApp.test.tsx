@@ -3,7 +3,7 @@ import { describe, expect, it } from "vitest";
 import { PreviewApp } from "./PreviewApp";
 
 describe("PreviewApp", () => {
-  it("uses production placement state and exposes Presence controls", () => {
+  it("uses production placement state and exposes Presence controls", async () => {
     render(<PreviewApp />);
 
     expect(screen.getByText(/top · 50% · 72%/i)).toBeInTheDocument();
@@ -11,7 +11,7 @@ describe("PreviewApp", () => {
 
     fireEvent.click(screen.getByTestId("nimbi-island"));
 
-    const slider = screen.getByRole("slider", { name: "Nimbi opacity" });
+    const slider = await screen.findByRole("slider", { name: "Nimbi opacity" });
     fireEvent.click(slider);
     expect(screen.getByRole("slider", { name: "Nimbi opacity" })).toBeInTheDocument();
 
