@@ -14,6 +14,7 @@ export interface DynamicIslandProps {
   onBoundsChange?: (rect: { x: number; y: number; width: number; height: number }) => void;
   onPointerEnter?: () => void;
   onPointerLeave?: () => void;
+  pointer?: { x: number; y: number };
 }
 
 function statusText(snapshot: NimbiSnapshot): string | undefined {
@@ -53,6 +54,7 @@ export function DynamicIsland({
   onBoundsChange,
   onPointerEnter,
   onPointerLeave,
+  pointer: externalPointer,
 }: DynamicIslandProps) {
   const islandRef = useRef<HTMLElement | null>(null);
   const [pointer, setPointer] = useState<{ x: number; y: number }>();
@@ -120,7 +122,7 @@ export function DynamicIsland({
           activity={snapshot.activity}
           hidden={mode === "hidden"}
           reducedMotion={reducedMotion}
-          pointer={pointer}
+          pointer={externalPointer ?? pointer}
           bounds={cloudBounds}
         />
       </div>
