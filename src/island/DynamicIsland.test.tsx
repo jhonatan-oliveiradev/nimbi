@@ -1,6 +1,7 @@
 import { fireEvent, render, screen } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 import { NIMBI_FIXTURES } from "../telemetry/fixtures";
+import type { NimbiPlacement, WorkArea } from "../placement/placement";
 import { DynamicIsland } from "./DynamicIsland";
 import type { IslandMode } from "./island-machine";
 
@@ -156,6 +157,91 @@ describe("DynamicIsland", () => {
       height: 40,
     });
     rectSpy.mockRestore();
+  });
+
+  it("reflows vertically when docked on the right edge", () => {
+    const placement: NimbiPlacement = {
+      mode: "docked",
+      monitorId: "preview",
+      edge: "right",
+      offset: 0.5,
+    };
+    const workArea: WorkArea = { x: 0, y: 0, width: 1000, height: 700 };
+    render(
+      <DynamicIsland
+        snapshot={NIMBI_FIXTURES.working}
+        mode="compact"
+        placement={placement}
+        workArea={workArea}
+      />,
+    );
+
+    const island = screen.getByTestId("nimbi-island");
+    expect(island).toHaveAttribute("data-orientation", "vertical");
+    expect(island).toHaveAttribute("data-edge", "right");
+    expect(island).toHaveAttribute("data-expansion", "left");
+  });
+
+  it("starts relocation only from the cloud character", () => {
+    const placement: NimbiPlacement = {
+      mode: "docked",
+      monitorId: "preview",
+      edge: "top",
+      offset: 0.5,
+    };
+    const workArea: WorkArea = { x: 0, y: 0, width: 1000, height: 700 };
+    const preview = vi.fn();
+
+    render(
+      <DynamicIsland
+        snapshot={NIMBI_FIXTURES.idle}
+        mode="idle"
+        placement={placement}
+        workArea={workArea}
+        onPlacementPreview={preview}
+      />,
+    );
+
+    fireEvent.pointerDown(screen.getByTestId("nimbi-island"), {
+      clientX: 500,
+      clientY: 10,
+    });
+    fireEvent.pointerMove(screen.getByTestId("nimbi-island"), {
+      clientX: 530,
+      clientY: 100,
+    });
+    expect(preview).not.toHaveBeenCalled();
+
+    const character = screen.getByTestId("nimbi-character");
+    fireEvent.pointerDown(character, { clientX: 500, clientY: 10 });
+    fireEvent.pointerMove(character, { clientX: 530, clientY: 100 });
+    expect(preview).toHaveBeenCalled();
+  });
+
+  it("keeps content fully opaque while only the character uses passive opacity", () => {
+    const placement: NimbiPlacement = {
+      mode: "floating",
+      monitorId: "preview",
+      x: 0.5,
+      y: 0.5,
+    };
+    const workArea: WorkArea = { x: 0, y: 0, width: 1000, height: 700 };
+
+    render(
+      <DynamicIsland
+        snapshot={NIMBI_FIXTURES.working}
+        mode="compact"
+        placement={placement}
+        workArea={workArea}
+        passiveOpacity={0.2}
+      />,
+    );
+
+    expect(screen.getByTestId("nimbi-island")).toHaveStyle({ opacity: "1" });
+    expect(screen.getByTestId("nimbi-cloud")).toHaveAttribute(
+      "data-effective-opacity",
+      "0.65",
+    );
   });
 
   it.each<IslandMode>([
