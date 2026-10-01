@@ -38,7 +38,7 @@
 
 .nimbi-island[data-edge="top"] {
   top: 0;
-  left: 50%;
+  left: var(--nimbi-anchor-x, 50%);
   translate: -50% 0;
   transform-origin: top center;
 }
@@ -49,7 +49,7 @@
 
 .nimbi-island[data-edge="bottom"] {
   bottom: 0;
-  left: 50%;
+  left: var(--nimbi-anchor-x, 50%);
   translate: -50% 0;
   border-radius: 20px 20px 0 0;
   transform-origin: bottom center;
@@ -60,7 +60,7 @@
 }
 
 .nimbi-island[data-edge="left"] {
-  top: 50%;
+  top: var(--nimbi-anchor-y, 50%);
   left: 0;
   translate: 0 -50%;
   border-radius: 0 22px 22px 0;
@@ -72,7 +72,7 @@
 }
 
 .nimbi-island[data-edge="right"] {
-  top: 50%;
+  top: var(--nimbi-anchor-y, 50%);
   right: 0;
   translate: 0 -50%;
   border-radius: 22px 0 0 22px;
@@ -84,8 +84,8 @@
 }
 
 .nimbi-island[data-edge="floating"] {
-  top: 50%;
-  left: 50%;
+  top: var(--nimbi-anchor-y, 50%);
+  left: var(--nimbi-anchor-x, 50%);
   translate: -50% -50%;
   border-radius: 22px;
   transform-origin: center;
