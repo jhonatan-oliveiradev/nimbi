@@ -12,6 +12,8 @@ export interface DynamicIslandProps {
   fixtureOnly?: boolean;
   reducedMotion?: boolean;
   onBoundsChange?: (rect: { x: number; y: number; width: number; height: number }) => void;
+  onPointerEnter?: () => void;
+  onPointerLeave?: () => void;
 }
 
 function statusText(snapshot: NimbiSnapshot): string | undefined {
@@ -49,6 +51,8 @@ export function DynamicIsland({
   fixtureOnly = false,
   reducedMotion = false,
   onBoundsChange,
+  onPointerEnter,
+  onPointerLeave,
 }: DynamicIslandProps) {
   const islandRef = useRef<HTMLElement | null>(null);
 
@@ -93,6 +97,8 @@ export function DynamicIsland({
       }}
       transition={{ type: "spring", stiffness: 420, damping: 36 }}
       onClick={onToggle}
+      onPointerEnter={onPointerEnter}
+      onPointerLeave={onPointerLeave}
     >
       <div className="nimbi-island__character">
         <NimbiCloud
