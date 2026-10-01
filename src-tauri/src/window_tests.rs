@@ -1,8 +1,8 @@
 use crate::preferences::{DockEdge, NimbiPlacement};
 use crate::window::{
     centered_top_geometry, evaluate_pointer, hit_test, monitor_for_point,
-    placement_window_geometry, resolve_monitor, IslandRect, LogicalSize, MonitorGeometry,
-    MonitorWorkArea, Point, PANEL_H, PANEL_W, STRIP_H, STRIP_W,
+    placement_for_point, placement_window_geometry, resolve_monitor, IslandRect, LogicalSize,
+    MonitorGeometry, MonitorWorkArea, Point, PANEL_H, PANEL_W, STRIP_H, STRIP_W,
 };
 
 #[test]
@@ -287,5 +287,53 @@ fn pointer_crossing_monitors_selects_the_work_area_under_it() {
             .expect("right monitor")
             .id,
         "right"
+    );
+}
+
+#[test]
+fn placement_for_point_snaps_to_nearest_edge_and_preserves_monitor_identity() {
+    let monitor = MonitorWorkArea {
+        id: "right".into(),
+        x: 0,
+        y: 0,
+        width: 1920,
+        height: 1040,
+        scale: 1.25,
+        primary: true,
+    };
+    let previous = NimbiPlacement::Docked {
+        monitor_id: "right".into(),
+        edge: DockEdge::Top,
+        offset: 0.5,
+    };
+
+    let snapped = placement_for_point(
+        &monitor,
+        Point { x: 1910.0, y: 500.0 },
+        Some(&previous),
+        56.0,
+    );
+    assert_eq!(
+        snapped,
+        NimbiPlacement::Docked {
+            monitor_id: "right".into(),
+            edge: DockEdge::Right,
+            offset: 500.0 / 1040.0,
+        }
+    );
+
+    let floating = placement_for_point(
+        &monitor,
+        Point { x: 960.0, y: 520.0 },
+        Some(&previous),
+        56.0,
+    );
+    assert_eq!(
+        floating,
+        NimbiPlacement::Floating {
+            monitor_id: "right".into(),
+            x: 0.5,
+            y: 0.5,
+        }
     );
 }
