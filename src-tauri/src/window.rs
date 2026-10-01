@@ -244,7 +244,7 @@ pub fn spawn_cursor_poll(app: AppHandle, gate: Arc<WindowGate>) {
                 std::thread::sleep(Duration::from_millis(16));
                 ticks = ticks.wrapping_add(1);
 
-                if ticks % 30 == 0 {
+                if ticks.is_multiple_of(30) {
                     let now = current_monitor_key(&app);
                     if now.is_some() && now != last_monitor {
                         last_monitor = now;
