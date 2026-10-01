@@ -37,3 +37,27 @@ AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
 LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
+
+## Bible Strong Avatar Lab / Cloudee
+
+Nimbi uses an exported **Cloudee** procedural avatar definition created with
+Bible Strong Avatar Lab and renders it with the project's published React
+runtime:
+
+- Project: Bible Strong Avatar Lab
+- Repository: https://github.com/smontlouis/bible-strong-avatar-lab
+- Author: Stéphane Montlouis-Calixte
+- Export used by Nimbi: Cloudee `.avatar.json` definition
+- Runtime package: `@bible-strong/avatar-react@0.1.0`
+- Runtime dependency: `@bible-strong/avatar-core@0.1.0`
+- Declared source/runtime license: GNU Affero General Public License v3.0 only
+  (AGPL-3.0-only)
+
+Nimbi does not embed or rebrand the Avatar Lab Studio. The exported avatar is
+kept as a versioned product asset, while Nimbi owns the behavior arbitration,
+RunOptic integration, placement, presence, island shell, and interaction
+lifecycle around it.
+
+The installed Bible Strong runtime packages include their license materials.
+The upstream repository and its LICENSE file are the authoritative source for
+the applicable license terms.
