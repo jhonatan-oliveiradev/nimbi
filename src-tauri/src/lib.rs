@@ -37,6 +37,28 @@ fn get_preferences(state: State<'_, RuntimeState>) -> PreferencesV1 {
         .clone()
 }
 
+fn current_logical_size(state: &RuntimeState) -> window::LogicalSize {
+    let rect = state.window_gate.rect();
+    window::LogicalSize {
+        width: if rect.w > 0.0 { rect.w } else { 144.0 },
+        height: if rect.h > 0.0 { rect.h } else { 38.0 },
+    }
+}
+
+fn apply_current_geometry(app: &AppHandle, state: &RuntimeState) {
+    let preferences = state
+        .preferences
+        .lock()
+        .expect("Nimbi preferences lock poisoned")
+        .clone();
+    window::apply_placement_geometry(
+        app,
+        &preferences.placement,
+        current_logical_size(state),
+        state.window_gate.collapsed.load(Ordering::Relaxed),
+    );
+}
+
 fn commit_preferences(
     app: &AppHandle,
     state: &RuntimeState,
@@ -48,6 +70,7 @@ fn commit_preferences(
         .preferences
         .lock()
         .expect("Nimbi preferences lock poisoned") = next.clone();
+    apply_current_geometry(app, state);
     let _ = app.emit("nimbi://preferences", &next);
     Ok(next)
 }
@@ -92,7 +115,7 @@ fn set_visibility_hint(hidden: bool, state: State<'_, RuntimeState>) {
 #[tauri::command]
 fn set_collapsed(collapsed: bool, app: AppHandle, state: State<'_, RuntimeState>) {
     state.window_gate.collapsed.store(collapsed, Ordering::Relaxed);
-    window::apply_geometry(&app, collapsed);
+    apply_current_geometry(&app, &state);
     let interactive = state.interactive.load(Ordering::Relaxed);
     state
         .window_gate
@@ -108,6 +131,7 @@ fn set_island_rect(
     y: f64,
     width: f64,
     height: f64,
+    app: AppHandle,
     state: State<'_, RuntimeState>,
 ) {
     state.window_gate.set_rect(window::IslandRect {
@@ -116,6 +140,9 @@ fn set_island_rect(
         w: width,
         h: height,
     });
+    if !state.dragging.load(Ordering::Relaxed) {
+        apply_current_geometry(&app, &state);
+    }
 }
 
 #[tauri::command]
@@ -140,10 +167,44 @@ fn set_interactive(interactive: bool, app: AppHandle, state: State<'_, RuntimeSt
 
 #[tauri::command]
 fn reposition(app: AppHandle, state: State<'_, RuntimeState>) {
-    window::apply_geometry(
-        &app,
-        state.window_gate.collapsed.load(Ordering::Relaxed),
-    );
+    apply_current_geometry(&app, &state);
+}
+
+#[tauri::command]
+fn begin_drag(app: AppHandle, state: State<'_, RuntimeState>) {
+    state.dragging.store(true, Ordering::Relaxed);
+    window::set_ignore_cursor(&app, false);
+}
+
+#[tauri::command]
+fn move_drag(app: AppHandle, state: State<'_, RuntimeState>) {
+    if !state.dragging.load(Ordering::Relaxed) {
+        return;
+    }
+    if let Some(point) = window::cursor_screen_point() {
+        window::move_window_centered_at(&app, point);
+    }
+}
+
+#[tauri::command]
+fn commit_drag(
+    app: AppHandle,
+    state: State<'_, RuntimeState>,
+) -> Result<PreferencesV1, String> {
+    state.dragging.store(false, Ordering::Relaxed);
+    let current = get_preferences(state.clone());
+    let point = window::cursor_screen_point().ok_or_else(|| "cursor unavailable".to_string())?;
+    let placement = window::placement_at_screen_point(&app, point, Some(&current.placement))
+        .ok_or_else(|| "no monitor available".to_string())?;
+    let mut next = current;
+    next.placement = placement;
+    commit_preferences(&app, &state, next)
+}
+
+#[tauri::command]
+fn cancel_drag(app: AppHandle, state: State<'_, RuntimeState>) {
+    state.dragging.store(false, Ordering::Relaxed);
+    apply_current_geometry(&app, &state);
 }
 
 fn cursor_poll_should_run(collapsed: bool, _interactive: bool) -> bool {
@@ -210,7 +271,11 @@ pub fn run() {
             set_collapsed,
             set_island_rect,
             set_interactive,
-            reposition
+            reposition,
+            begin_drag,
+            move_drag,
+            commit_drag,
+            cancel_drag
         ])
         .setup(|app| {
             let handle = app.handle().clone();
@@ -218,7 +283,7 @@ pub fn run() {
             if let Some(win) = window::window(&handle) {
                 window::make_non_activating(&win);
             }
-            window::apply_geometry(&handle, false);
+            apply_current_geometry(&handle, &state);
             state.window_gate.set_active(true);
             window::spawn_cursor_poll(handle.clone(), state.window_gate.clone());
             start_runoptic_poll(handle);
