@@ -7,6 +7,8 @@ import {
   type PointerEvent as ReactPointerEvent,
 } from "react";
 import { motion } from "motion/react";
+import type { NimbiBehavior } from "../behavior/nimbi-behavior";
+import type { NimbiBehaviorEvents } from "../behavior/use-nimbi-behavior";
 import { NimbiCloud } from "../nimbi/NimbiCloud";
 import {
   DEFAULT_PLACEMENT,
@@ -33,6 +35,8 @@ export interface DynamicIslandProps {
   snapshot: NimbiSnapshot;
   mode: IslandMode;
   onToggle?: () => void;
+  behavior?: NimbiBehavior;
+  behaviorEvents?: NimbiBehaviorEvents;
   fixtureOnly?: boolean;
   reducedMotion?: boolean;
   onBoundsChange?: (rect: { x: number; y: number; width: number; height: number }) => void;
@@ -153,6 +157,8 @@ export function DynamicIsland({
   snapshot,
   mode,
   onToggle,
+  behavior,
+  behaviorEvents,
   fixtureOnly = false,
   reducedMotion = false,
   onBoundsChange,
@@ -271,6 +277,7 @@ export function DynamicIsland({
 
   const handleClick = () => {
     if (drag.consumeSuppressedClick()) return;
+    behaviorEvents?.onTap();
     onToggle?.();
   };
 
@@ -284,6 +291,7 @@ export function DynamicIsland({
       data-edge={activePlacement.mode === "docked" ? activePlacement.edge : "floating"}
       data-expansion={direction}
       data-dragging={String(drag.dragging)}
+      data-behavior={behavior}
       className="nimbi-island"
       aria-label="Nimbi"
       initial={false}
@@ -301,6 +309,7 @@ export function DynamicIsland({
       onClick={handleClick}
       onPointerEnter={() => {
         setHovered(true);
+        behaviorEvents?.onHoverStart();
         onPointerEnter?.();
       }}
       onPointerMove={(event) =>
@@ -309,6 +318,7 @@ export function DynamicIsland({
       onPointerLeave={() => {
         setHovered(false);
         setPointer(undefined);
+        behaviorEvents?.onHoverEnd();
         onPointerLeave?.();
       }}
     >
