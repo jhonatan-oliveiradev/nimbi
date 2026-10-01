@@ -2,6 +2,10 @@ import { useEffect, useState } from "react";
 import { motion } from "motion/react";
 import type { NimbiActivity } from "../telemetry/contract";
 import {
+  effectiveOpacity,
+  type PresenceInteraction,
+} from "../presence/presence";
+import {
   clampGaze,
   motionForActivity,
   type DOMRectLike,
@@ -15,6 +19,8 @@ export interface NimbiCloudProps {
   reducedMotion?: boolean;
   hidden?: boolean;
   className?: string;
+  passiveOpacity?: number;
+  interaction?: PresenceInteraction;
 }
 
 const DEFAULT_BOUNDS: DOMRectLike = { x: 0, y: 0, width: 100, height: 60 };
@@ -26,6 +32,8 @@ export function NimbiCloud({
   reducedMotion = false,
   hidden = false,
   className = "",
+  passiveOpacity = 0.72,
+  interaction = "passive",
 }: NimbiCloudProps) {
   const profile = motionForActivity(activity);
   const [documentVisible, setDocumentVisible] = useState(
@@ -41,6 +49,11 @@ export function NimbiCloud({
   }, []);
 
   const motionDisabled = reducedMotion || hidden || !documentVisible;
+  const presenceOpacity = effectiveOpacity(
+    activity,
+    passiveOpacity,
+    interaction,
+  );
   const gaze =
     !motionDisabled && pointer
       ? clampGaze(pointer.x, pointer.y, bounds)
@@ -74,13 +87,14 @@ export function NimbiCloud({
       data-gaze-y={motionDisabled ? "0" : String(gaze.y)}
       data-reaction={reaction}
       data-looping={String(loops)}
+      data-effective-opacity={String(presenceOpacity)}
       className={`nimbi-cloud ${className}`.trim()}
       viewBox="0 0 100 62"
       role="img"
       aria-label={`Nimbi: ${activity}`}
       initial={false}
       animate={{
-        opacity: profile.opacity,
+        opacity: profile.opacity * presenceOpacity,
         scaleX: profile.stretchX,
         scaleY: profile.stretchY,
         rotate: profile.tilt,
