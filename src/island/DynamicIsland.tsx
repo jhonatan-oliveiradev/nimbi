@@ -1,3 +1,4 @@
+import { useLayoutEffect, useRef } from "react";
 import { motion } from "motion/react";
 import { NimbiCloud } from "../nimbi/NimbiCloud";
 import type { NimbiSnapshot } from "../telemetry/contract";
@@ -10,6 +11,7 @@ export interface DynamicIslandProps {
   onToggle?: () => void;
   fixtureOnly?: boolean;
   reducedMotion?: boolean;
+  onBoundsChange?: (rect: { x: number; y: number; width: number; height: number }) => void;
 }
 
 function statusText(snapshot: NimbiSnapshot): string | undefined {
@@ -46,7 +48,30 @@ export function DynamicIsland({
   onToggle,
   fixtureOnly = false,
   reducedMotion = false,
+  onBoundsChange,
 }: DynamicIslandProps) {
+  const islandRef = useRef<HTMLElement | null>(null);
+
+  useLayoutEffect(() => {
+    if (!onBoundsChange || !islandRef.current) return;
+    const element = islandRef.current;
+    const report = () => {
+      const rect = element.getBoundingClientRect();
+      onBoundsChange({
+        x: rect.x,
+        y: rect.y,
+        width: rect.width,
+        height: rect.height,
+      });
+    };
+
+    report();
+    if (typeof ResizeObserver === "undefined") return;
+    const observer = new ResizeObserver(report);
+    observer.observe(element);
+    return () => observer.disconnect();
+  }, [mode, onBoundsChange]);
+
   const status = statusText(snapshot);
   const meta = knownMeta(snapshot);
   const showStatus = mode === "compact" && Boolean(status);
@@ -55,6 +80,7 @@ export function DynamicIsland({
 
   return (
     <motion.section
+      ref={islandRef}
       data-testid="nimbi-island"
       data-mode={mode}
       data-muted={String(muted)}
