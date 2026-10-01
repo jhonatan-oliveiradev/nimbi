@@ -152,5 +152,6 @@ describe("NimbiAvatar", () => {
     const fallback = screen.getByTestId("nimbi-cloud");
     expect(fallback).toBeInTheDocument();
     expect(fallback).toHaveAttribute("data-effective-opacity", "0.65");
+    expect(fallback.closest('[data-testid="nimbi-avatar"]')).toBeNull();
   });
 });
