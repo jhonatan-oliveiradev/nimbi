@@ -1,7 +1,17 @@
-import { useLayoutEffect, useRef, useState } from "react";
+import { useLayoutEffect, useRef, useState, type CSSProperties, type PointerEventHandler } from "react";
 import { motion } from "motion/react";
 import { NimbiCloud } from "../nimbi/NimbiCloud";
 import type { NimbiSnapshot } from "../telemetry/contract";
+import {
+  DEFAULT_PLACEMENT,
+  DEFAULT_PRESENCE,
+  deriveExpansionDirection,
+  deriveOrientation,
+  effectivePresence,
+  type NimbiPlacement,
+  type NimbiPresence,
+  type ViewportRect,
+} from "../placement/placement";
 import type { IslandMode } from "./island-machine";
 import "./island.css";
 
@@ -15,6 +25,11 @@ export interface DynamicIslandProps {
   onPointerEnter?: () => void;
   onPointerLeave?: () => void;
   pointer?: { x: number; y: number };
+  placement?: NimbiPlacement;
+  presence?: NimbiPresence;
+  viewport?: ViewportRect;
+  dragging?: boolean;
+  onCharacterPointerDown?: PointerEventHandler<HTMLDivElement>;
 }
 
 function statusText(snapshot: NimbiSnapshot): string | undefined {
@@ -55,10 +70,16 @@ export function DynamicIsland({
   onPointerEnter,
   onPointerLeave,
   pointer: externalPointer,
+  placement = DEFAULT_PLACEMENT,
+  presence = DEFAULT_PRESENCE,
+  viewport = { width: 1200, height: 800 },
+  dragging = false,
+  onCharacterPointerDown,
 }: DynamicIslandProps) {
   const islandRef = useRef<HTMLElement | null>(null);
   const characterRef = useRef<HTMLDivElement | null>(null);
   const [pointer, setPointer] = useState<{ x: number; y: number }>();
+  const [hovered, setHovered] = useState(false);
   const [cloudBounds, setCloudBounds] = useState<{
     x: number;
     y: number;
@@ -98,6 +119,17 @@ export function DynamicIsland({
 
   const status = statusText(snapshot);
   const meta = knownMeta(snapshot);
+  const orientation = deriveOrientation(placement, viewport);
+  const expansion = deriveExpansionDirection(placement, viewport);
+  const presenceOpacity = effectivePresence(
+    snapshot.activity,
+    presence.idleOpacity,
+    hovered,
+  );
+  const edge = placement.mode === "docked" ? placement.edge : "floating";
+  const style = {
+    "--nimbi-presence": String(presenceOpacity),
+  } as CSSProperties;
   const showStatus = mode === "compact" && Boolean(status);
   const showDetails = mode === "attention" || mode === "expanded";
   const muted = !snapshot.connected || snapshot.activity === "offline";
@@ -108,7 +140,13 @@ export function DynamicIsland({
       data-testid="nimbi-island"
       data-mode={mode}
       data-muted={String(muted)}
+      data-placement-mode={placement.mode}
+      data-edge={edge}
+      data-orientation={orientation}
+      data-expansion={expansion}
+      data-dragging={String(dragging)}
       className="nimbi-island"
+      style={style}
       aria-label="Nimbi"
       initial={false}
       animate={{
@@ -117,16 +155,25 @@ export function DynamicIsland({
       }}
       transition={{ type: "spring", stiffness: 420, damping: 36 }}
       onClick={onToggle}
-      onPointerEnter={onPointerEnter}
+      onPointerEnter={() => {
+        setHovered(true);
+        onPointerEnter?.();
+      }}
       onPointerMove={(event) =>
         setPointer({ x: event.clientX, y: event.clientY })
       }
       onPointerLeave={() => {
+        setHovered(false);
         setPointer(undefined);
         onPointerLeave?.();
       }}
     >
-      <div ref={characterRef} className="nimbi-island__character">
+      <div
+        ref={characterRef}
+        className="nimbi-island__character"
+        data-testid="nimbi-character"
+        onPointerDown={onCharacterPointerDown}
+      >
         <NimbiCloud
           activity={snapshot.activity}
           hidden={mode === "hidden"}
