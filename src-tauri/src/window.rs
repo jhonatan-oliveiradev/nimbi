@@ -26,6 +26,8 @@ pub const STRIP_W: f64 = 220.0;
 pub const STRIP_H: f64 = 6.0;
 const HIT_MARGIN: f64 = 12.0;
 
+type MonitorKey = (String, i32, i32, u32, u32, u64);
+
 #[derive(Clone, Copy, Debug)]
 pub struct MonitorGeometry {
     pub x: i32,
@@ -511,7 +513,7 @@ pub fn apply_geometry(app: &AppHandle, collapsed: bool) {
     let _ = win.set_always_on_top(true);
 }
 
-fn current_monitor_key(app: &AppHandle) -> Option<Vec<(String, i32, i32, u32, u32, u64)>> {
+fn current_monitor_key(app: &AppHandle) -> Option<Vec<MonitorKey>> {
     let mut monitors = monitor_work_areas(app);
     monitors.sort_by(|a, b| a.id.cmp(&b.id));
     Some(
