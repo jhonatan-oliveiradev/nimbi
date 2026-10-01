@@ -5,8 +5,14 @@ use std::time::Duration;
 use serde::Serialize;
 use tauri::{AppHandle, Emitter, Manager, Monitor, PhysicalPosition, PhysicalSize, WebviewWindow};
 
+use crate::preferences::{DockEdge, NimbiPlacement};
+
 #[cfg(windows)]
 use windows::Win32::Foundation::{HWND, POINT};
+#[cfg(windows)]
+use windows::Win32::Graphics::Gdi::{
+    GetMonitorInfoW, MonitorFromPoint, MONITORINFO, MONITOR_DEFAULTTONEAREST,
+};
 #[cfg(windows)]
 use windows::Win32::UI::WindowsAndMessaging::{
     GetCursorPos, GetWindowLongPtrW, SetWindowLongPtrW, GWL_EXSTYLE, WS_EX_NOACTIVATE,
@@ -27,6 +33,23 @@ pub struct MonitorGeometry {
     pub width: u32,
     pub height: u32,
     pub scale: f64,
+}
+
+#[derive(Clone, Debug, PartialEq)]
+pub struct MonitorWorkArea {
+    pub id: String,
+    pub x: i32,
+    pub y: i32,
+    pub width: u32,
+    pub height: u32,
+    pub scale: f64,
+    pub primary: bool,
+}
+
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub struct LogicalSize {
+    pub width: f64,
+    pub height: f64,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -143,6 +166,137 @@ pub fn centered_top_geometry(monitor: MonitorGeometry, collapsed: bool) -> Windo
     }
 }
 
+pub fn placement_window_geometry(
+    monitor: &MonitorWorkArea,
+    placement: &NimbiPlacement,
+    logical_size: LogicalSize,
+    collapsed: bool,
+) -> WindowGeometry {
+    let vertical = matches!(
+        placement,
+        NimbiPlacement::Docked {
+            edge: DockEdge::Left | DockEdge::Right,
+            ..
+        }
+    );
+
+    let (logical_w, logical_h) = if collapsed {
+        if vertical {
+            (STRIP_H, STRIP_W)
+        } else {
+            (STRIP_W, STRIP_H)
+        }
+    } else {
+        (logical_size.width.max(1.0), logical_size.height.max(1.0))
+    };
+
+    let width = (logical_w * monitor.scale).round().max(1.0) as u32;
+    let height = (logical_h * monitor.scale).round().max(1.0) as u32;
+    let max_x = monitor.x + monitor.width as i32 - width as i32;
+    let max_y = monitor.y + monitor.height as i32 - height as i32;
+
+    let (x, y) = match placement {
+        NimbiPlacement::Docked { edge, offset, .. } => {
+            let offset = offset.clamp(0.0, 1.0);
+            match edge {
+                DockEdge::Top => (
+                    monitor.x
+                        + ((monitor.width as f64 * offset) - width as f64 / 2.0).round()
+                            as i32,
+                    monitor.y,
+                ),
+                DockEdge::Bottom => (
+                    monitor.x
+                        + ((monitor.width as f64 * offset) - width as f64 / 2.0).round()
+                            as i32,
+                    max_y,
+                ),
+                DockEdge::Left => (
+                    monitor.x,
+                    monitor.y
+                        + ((monitor.height as f64 * offset) - height as f64 / 2.0).round()
+                            as i32,
+                ),
+                DockEdge::Right => (
+                    max_x,
+                    monitor.y
+                        + ((monitor.height as f64 * offset) - height as f64 / 2.0).round()
+                            as i32,
+                ),
+            }
+        }
+        NimbiPlacement::Floating { x, y, .. } => (
+            monitor.x
+                + ((monitor.width as f64 * x.clamp(0.0, 1.0)) - width as f64 / 2.0).round()
+                    as i32,
+            monitor.y
+                + ((monitor.height as f64 * y.clamp(0.0, 1.0)) - height as f64 / 2.0).round()
+                    as i32,
+        ),
+    };
+
+    WindowGeometry {
+        x: x.clamp(monitor.x, max_x.max(monitor.x)),
+        y: y.clamp(monitor.y, max_y.max(monitor.y)),
+        width,
+        height,
+    }
+}
+
+pub fn resolve_monitor<'a>(
+    monitors: &'a [MonitorWorkArea],
+    requested_id: &str,
+) -> Option<&'a MonitorWorkArea> {
+    monitors
+        .iter()
+        .find(|monitor| monitor.id == requested_id)
+        .or_else(|| monitors.iter().find(|monitor| monitor.primary))
+        .or_else(|| monitors.first())
+}
+
+pub fn monitor_for_point(
+    monitors: &[MonitorWorkArea],
+    point: Point,
+) -> Option<&MonitorWorkArea> {
+    monitors
+        .iter()
+        .find(|monitor| {
+            point.x >= monitor.x as f64
+                && point.x < (monitor.x + monitor.width as i32) as f64
+                && point.y >= monitor.y as f64
+                && point.y < (monitor.y + monitor.height as i32) as f64
+        })
+        .or_else(|| {
+            monitors.iter().min_by(|a, b| {
+                distance_to_monitor(a, point)
+                    .partial_cmp(&distance_to_monitor(b, point))
+                    .unwrap_or(std::cmp::Ordering::Equal)
+            })
+        })
+}
+
+fn distance_to_monitor(monitor: &MonitorWorkArea, point: Point) -> f64 {
+    let left = monitor.x as f64;
+    let right = (monitor.x + monitor.width as i32) as f64;
+    let top = monitor.y as f64;
+    let bottom = (monitor.y + monitor.height as i32) as f64;
+    let dx = if point.x < left {
+        left - point.x
+    } else if point.x > right {
+        point.x - right
+    } else {
+        0.0
+    };
+    let dy = if point.y < top {
+        top - point.y
+    } else if point.y > bottom {
+        point.y - bottom
+    } else {
+        0.0
+    };
+    dx.hypot(dy)
+}
+
 pub fn hit_test(rect: IslandRect, point: Point, margin: f64) -> bool {
     rect.w > 0.0
         && rect.h > 0.0
@@ -175,28 +329,133 @@ fn monitor_geometry(monitor: &Monitor) -> MonitorGeometry {
     }
 }
 
-pub fn apply_geometry(app: &AppHandle, collapsed: bool) {
+fn monitor_id(monitor: &Monitor, index: usize) -> String {
+    monitor
+        .name()
+        .filter(|name| !name.trim().is_empty())
+        .map(str::to_string)
+        .unwrap_or_else(|| {
+            let pos = monitor.position();
+            format!("monitor-{index}-{}-{}", pos.x, pos.y)
+        })
+}
+
+#[cfg(windows)]
+fn work_area_for_monitor(monitor: &Monitor) -> Option<(i32, i32, u32, u32)> {
+    let position = monitor.position();
+    let point = POINT {
+        x: position.x + 1,
+        y: position.y + 1,
+    };
+    let handle = unsafe { MonitorFromPoint(point, MONITOR_DEFAULTTONEAREST) };
+    if handle.0.is_null() {
+        return None;
+    }
+
+    let mut info = MONITORINFO {
+        cbSize: std::mem::size_of::<MONITORINFO>() as u32,
+        ..Default::default()
+    };
+    let ok = unsafe { GetMonitorInfoW(handle, &mut info) }.as_bool();
+    if !ok {
+        return None;
+    }
+
+    let rect = info.rcWork;
+    Some((
+        rect.left,
+        rect.top,
+        (rect.right - rect.left).max(0) as u32,
+        (rect.bottom - rect.top).max(0) as u32,
+    ))
+}
+
+#[cfg(not(windows))]
+fn work_area_for_monitor(monitor: &Monitor) -> Option<(i32, i32, u32, u32)> {
+    let pos = monitor.position();
+    let size = monitor.size();
+    Some((pos.x, pos.y, size.width, size.height))
+}
+
+pub fn monitor_work_areas(app: &AppHandle) -> Vec<MonitorWorkArea> {
+    let primary = app
+        .primary_monitor()
+        .ok()
+        .flatten()
+        .map(|monitor| (monitor.position().x, monitor.position().y));
+
+    app.available_monitors()
+        .unwrap_or_default()
+        .into_iter()
+        .enumerate()
+        .map(|(index, monitor)| {
+            let pos = monitor.position();
+            let size = monitor.size();
+            let (x, y, width, height) =
+                work_area_for_monitor(&monitor).unwrap_or((pos.x, pos.y, size.width, size.height));
+            MonitorWorkArea {
+                id: monitor_id(&monitor, index),
+                x,
+                y,
+                width,
+                height,
+                scale: monitor.scale_factor(),
+                primary: primary == Some((pos.x, pos.y)),
+            }
+        })
+        .collect()
+}
+
+pub fn apply_placement_geometry(
+    app: &AppHandle,
+    placement: &NimbiPlacement,
+    logical_size: LogicalSize,
+    collapsed: bool,
+) {
     let Some(win) = window(app) else { return };
-    let Some(monitor) = target_monitor(app) else { return };
-    let geometry = centered_top_geometry(monitor_geometry(&monitor), collapsed);
+    let monitors = monitor_work_areas(app);
+    let requested = match placement {
+        NimbiPlacement::Docked { monitor_id, .. }
+        | NimbiPlacement::Floating { monitor_id, .. } => monitor_id,
+    };
+    let Some(monitor) = resolve_monitor(&monitors, requested) else {
+        return;
+    };
+    let geometry = placement_window_geometry(monitor, placement, logical_size, collapsed);
 
     let _ = win.set_size(PhysicalSize::new(geometry.width, geometry.height));
     let _ = win.set_position(PhysicalPosition::new(geometry.x, geometry.y));
-    let _ = win.set_size(PhysicalSize::new(geometry.width, geometry.height));
     let _ = win.set_always_on_top(true);
 }
 
-fn current_monitor_key(app: &AppHandle) -> Option<(i32, i32, u32, u32, u64)> {
-    let monitor = target_monitor(app)?;
-    let pos = monitor.position();
-    let size = monitor.size();
-    Some((
-        pos.x,
-        pos.y,
-        size.width,
-        size.height,
-        monitor.scale_factor().to_bits(),
-    ))
+pub fn apply_geometry(app: &AppHandle, collapsed: bool) {
+    let Some(monitor) = target_monitor(app) else { return };
+    let geometry = centered_top_geometry(monitor_geometry(&monitor), collapsed);
+    let Some(win) = window(app) else { return };
+
+    let _ = win.set_size(PhysicalSize::new(geometry.width, geometry.height));
+    let _ = win.set_position(PhysicalPosition::new(geometry.x, geometry.y));
+    let _ = win.set_always_on_top(true);
+}
+
+fn current_monitor_key(app: &AppHandle) -> Option<Vec<(String, i32, i32, u32, u32, u64)>> {
+    let mut monitors = monitor_work_areas(app);
+    monitors.sort_by(|a, b| a.id.cmp(&b.id));
+    Some(
+        monitors
+            .into_iter()
+            .map(|monitor| {
+                (
+                    monitor.id,
+                    monitor.x,
+                    monitor.y,
+                    monitor.width,
+                    monitor.height,
+                    monitor.scale.to_bits(),
+                )
+            })
+            .collect(),
+    )
 }
 
 #[cfg(windows)]
@@ -269,7 +528,6 @@ pub fn spawn_cursor_poll(app: AppHandle, gate: Arc<WindowGate>) {
                     let now = current_monitor_key(&app);
                     if now.is_some() && now != last_monitor {
                         last_monitor = now;
-                        apply_geometry(&app, gate.collapsed.load(Ordering::Relaxed));
                     }
                 }
 
