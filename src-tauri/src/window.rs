@@ -569,10 +569,36 @@ pub fn set_activating(win: &WebviewWindow, activating: bool) {
 pub fn set_activating(_win: &WebviewWindow, _activating: bool) {}
 
 #[cfg(windows)]
-fn cursor_physical() -> Option<(f64, f64)> {
+pub fn cursor_screen_point() -> Option<Point> {
     let mut point = POINT::default();
     unsafe { GetCursorPos(&mut point).ok()? };
-    Some((point.x as f64, point.y as f64))
+    Some(Point {
+        x: point.x as f64,
+        y: point.y as f64,
+    })
+}
+
+#[cfg(not(windows))]
+pub fn cursor_screen_point() -> Option<Point> {
+    None
+}
+
+pub fn move_window_centered_at(app: &AppHandle, point: Point) {
+    let Some(win) = window(app) else { return };
+    let Ok(size) = win.outer_size() else { return };
+    let x = (point.x - size.width as f64 / 2.0).round() as i32;
+    let y = (point.y - size.height as f64 / 2.0).round() as i32;
+    let _ = win.set_position(PhysicalPosition::new(x, y));
+}
+
+pub fn placement_at_screen_point(
+    app: &AppHandle,
+    point: Point,
+    previous: Option<&NimbiPlacement>,
+) -> Option<NimbiPlacement> {
+    let monitors = monitor_work_areas(app);
+    let monitor = monitor_for_point(&monitors, point)?;
+    Some(placement_for_point(monitor, point, previous, 56.0))
 }
 
 pub fn set_ignore_cursor(app: &AppHandle, ignore: bool) {
@@ -607,10 +633,10 @@ pub fn spawn_cursor_poll(app: AppHandle, gate: Arc<WindowGate>) {
                 let Some(win) = window(&app) else { continue };
                 let Ok(origin) = win.outer_position() else { continue };
                 let scale = win.scale_factor().unwrap_or(1.0);
-                let Some((cx, cy)) = cursor_physical() else { continue };
+                let Some(cursor) = cursor_screen_point() else { continue };
                 let point = Point {
-                    x: (cx - origin.x as f64) / scale,
-                    y: (cy - origin.y as f64) / scale,
+                    x: (cursor.x - origin.x as f64) / scale,
+                    y: (cursor.y - origin.y as f64) / scale,
                 };
 
                 let rect = *gate.rect.lock().expect("island rect lock poisoned");
