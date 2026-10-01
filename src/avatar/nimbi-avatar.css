@@ -1,0 +1,19 @@
+.nimbi-avatar {
+  display: block;
+  width: 100%;
+  height: 100%;
+  transform-origin: 50% 60%;
+}
+
+.nimbi-avatar__runtime,
+.nimbi-avatar__runtime.bs-avatar {
+  display: block;
+  width: 100% !important;
+  height: 100% !important;
+}
+
+.nimbi-avatar__runtime .bs-avatar__svg {
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+}
