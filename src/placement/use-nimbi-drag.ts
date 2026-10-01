@@ -37,7 +37,7 @@ export function useNimbiDrag({
   onPreview,
   onCommit,
 }: UseNimbiDragOptions): NimbiDragController {
-  const startRef = useRef<Point>();
+  const startRef = useRef<Point | undefined>(undefined);
   const draggingRef = useRef(false);
   const suppressClickRef = useRef(false);
   const [dragging, setDragging] = useState(false);
