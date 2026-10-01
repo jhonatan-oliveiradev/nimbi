@@ -64,7 +64,7 @@ export function DynamicIsland({
   }>();
 
   useLayoutEffect(() => {
-    if (!onBoundsChange || !islandRef.current) return;
+    if (!islandRef.current) return;
     const element = islandRef.current;
     const report = () => {
       const rect = element.getBoundingClientRect();
@@ -75,7 +75,7 @@ export function DynamicIsland({
         height: rect.height,
       };
       setCloudBounds(bounds);
-      onBoundsChange(bounds);
+      onBoundsChange?.(bounds);
     };
 
     report();
