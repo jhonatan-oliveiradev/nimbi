@@ -13,6 +13,9 @@ mod window_tests;
 use std::sync::atomic::Ordering;
 use std::time::Duration;
 
+use preferences::{
+    save_preferences_to, NimbiPlacement, NimbiPresence, PreferencesV1,
+};
 use state::{NimbiActivity, NimbiSnapshot, RuntimeState};
 use tauri::{AppHandle, Emitter, Manager, State};
 
@@ -23,6 +26,62 @@ fn get_nimbi_snapshot(state: State<'_, RuntimeState>) -> NimbiSnapshot {
         .lock()
         .expect("Nimbi snapshot lock poisoned")
         .clone()
+}
+
+#[tauri::command]
+fn get_preferences(state: State<'_, RuntimeState>) -> PreferencesV1 {
+    state
+        .preferences
+        .lock()
+        .expect("Nimbi preferences lock poisoned")
+        .clone()
+}
+
+fn commit_preferences(
+    app: &AppHandle,
+    state: &RuntimeState,
+    next: PreferencesV1,
+) -> Result<PreferencesV1, String> {
+    let next = next.sanitized();
+    save_preferences_to(&state.preferences_path, &next)?;
+    *state
+        .preferences
+        .lock()
+        .expect("Nimbi preferences lock poisoned") = next.clone();
+    let _ = app.emit("nimbi://preferences", &next);
+    Ok(next)
+}
+
+#[tauri::command]
+fn save_placement(
+    placement: NimbiPlacement,
+    app: AppHandle,
+    state: State<'_, RuntimeState>,
+) -> Result<PreferencesV1, String> {
+    let mut next = get_preferences(state.clone());
+    next.placement = placement;
+    commit_preferences(&app, &state, next)
+}
+
+#[tauri::command]
+fn save_presence(
+    presence: NimbiPresence,
+    app: AppHandle,
+    state: State<'_, RuntimeState>,
+) -> Result<PreferencesV1, String> {
+    let mut next = get_preferences(state.clone());
+    next.presence = presence;
+    commit_preferences(&app, &state, next)
+}
+
+#[tauri::command]
+fn reset_placement(
+    app: AppHandle,
+    state: State<'_, RuntimeState>,
+) -> Result<PreferencesV1, String> {
+    let mut next = get_preferences(state.clone());
+    next.placement = NimbiPlacement::default();
+    commit_preferences(&app, &state, next)
 }
 
 #[tauri::command]
@@ -143,6 +202,10 @@ pub fn run() {
         .manage(RuntimeState::new())
         .invoke_handler(tauri::generate_handler![
             get_nimbi_snapshot,
+            get_preferences,
+            save_placement,
+            save_presence,
+            reset_placement,
             set_visibility_hint,
             set_collapsed,
             set_island_rect,
