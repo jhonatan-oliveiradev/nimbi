@@ -12,6 +12,9 @@ describe("PreviewApp", () => {
     fireEvent.click(screen.getByTestId("nimbi-island"));
 
     const slider = screen.getByRole("slider", { name: "Nimbi opacity" });
+    fireEvent.click(slider);
+    expect(screen.getByRole("slider", { name: "Nimbi opacity" })).toBeInTheDocument();
+
     fireEvent.change(slider, { target: { value: "38" } });
 
     expect(screen.getByText(/top · 50% · 38%/i)).toBeInTheDocument();
