@@ -53,6 +53,17 @@ describe("IslandMachine", () => {
     expect(machine.mode).toBe("idle");
   });
 
+  it("restores the current passive mode when a hidden working state wakes", () => {
+    const machine = new IslandMachine();
+    machine.setActivity("working");
+    expect(machine.mode).toBe("compact");
+
+    machine.forceHidden();
+    machine.pointerEnter();
+
+    expect(machine.mode).toBe("compact");
+  });
+
   it("hides idle only after sixty seconds away", () => {
     vi.useFakeTimers();
     const machine = new IslandMachine();
@@ -72,6 +83,15 @@ describe("IslandMachine", () => {
 
     machine.pointerLeave();
     vi.advanceTimersByTime(120_000);
+    expect(machine.mode).toBe("attention");
+  });
+
+  it("does not dismiss unresolved attention through the generic island toggle", () => {
+    const machine = new IslandMachine();
+    machine.setActivity("needs-input");
+
+    machine.toggleExpanded();
+
     expect(machine.mode).toBe("attention");
   });
 });

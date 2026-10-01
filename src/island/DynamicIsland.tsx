@@ -57,6 +57,7 @@ export function DynamicIsland({
   pointer: externalPointer,
 }: DynamicIslandProps) {
   const islandRef = useRef<HTMLElement | null>(null);
+  const characterRef = useRef<HTMLDivElement | null>(null);
   const [pointer, setPointer] = useState<{ x: number; y: number }>();
   const [cloudBounds, setCloudBounds] = useState<{
     x: number;
@@ -66,24 +67,32 @@ export function DynamicIsland({
   }>();
 
   useLayoutEffect(() => {
-    if (!islandRef.current) return;
-    const element = islandRef.current;
+    if (!islandRef.current || !characterRef.current) return;
+    const island = islandRef.current;
+    const character = characterRef.current;
     const report = () => {
-      const rect = element.getBoundingClientRect();
-      const bounds = {
-        x: rect.x,
-        y: rect.y,
-        width: rect.width,
-        height: rect.height,
-      };
-      setCloudBounds(bounds);
-      onBoundsChange?.(bounds);
+      const islandRect = island.getBoundingClientRect();
+      onBoundsChange?.({
+        x: islandRect.x,
+        y: islandRect.y,
+        width: islandRect.width,
+        height: islandRect.height,
+      });
+
+      const characterRect = character.getBoundingClientRect();
+      setCloudBounds({
+        x: characterRect.x,
+        y: characterRect.y,
+        width: characterRect.width,
+        height: characterRect.height,
+      });
     };
 
     report();
     if (typeof ResizeObserver === "undefined") return;
     const observer = new ResizeObserver(report);
-    observer.observe(element);
+    observer.observe(island);
+    observer.observe(character);
     return () => observer.disconnect();
   }, [mode, onBoundsChange]);
 
@@ -117,7 +126,7 @@ export function DynamicIsland({
         onPointerLeave?.();
       }}
     >
-      <div className="nimbi-island__character">
+      <div ref={characterRef} className="nimbi-island__character">
         <NimbiCloud
           activity={snapshot.activity}
           hidden={mode === "hidden"}

@@ -28,7 +28,7 @@ The foundation release reads normalized local telemetry from RunOptic. It does n
 Most character and island work does not require launching an unsigned Windows executable.
 
 ```powershell
-npm install
+npm ci
 npm run dev
 ```
 
@@ -48,12 +48,42 @@ RunOptic should be available on its normal loopback endpoint:
 http://127.0.0.1:48666/v1/telemetry/state
 ```
 
-Start Nimbi:
+Start Nimbi with the normal Tauri CLI:
 
 ```powershell
-npm install
+npm ci
 npm run tauri:dev
 ```
+
+### Windows Application Control development constraint
+
+On a Windows machine where Smart App Control / Application Control is enforcing, local native compilation may be blocked before Nimbi itself is produced.
+
+We confirmed two distinct enforcement points on the target machine:
+
+1. the native binding used by `@tauri-apps/cli` (`cli.win32-x64-msvc.node`);
+2. fresh Cargo build-script executables under `src-tauri/target/debug/build/*/build-script-build.exe`.
+
+Because Cargo must execute those transient unsigned build binaries, bypassing the Node Tauri CLI with `cargo run` does **not** solve the policy boundary.
+
+Do not disable Smart App Control or Device Guard for Nimbi development.
+
+Use this workflow instead:
+
+```text
+local machine
+  └─ npm run dev
+     └─ browser fixture / production React components
+
+GitHub Actions (Windows)
+  └─ frontend tests + build
+  └─ Rust tests + clippy
+  └─ native Tauri build
+     └─ nimbi.exe artifact
+```
+
+The CI native build is the authoritative compile/link check until Nimbi has a trusted code-signing path or native testing is moved to a Windows development environment where Smart App Control is not enforcing.
+
 
 For explicit local testing only, the RunOptic base URL can be overridden with `NIMBI_RUNOPTIC_BASE_URL`. Plain HTTP overrides are accepted only for loopback hosts.
 

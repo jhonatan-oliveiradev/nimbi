@@ -1,3 +1,4 @@
+import { useEffect, useState } from "react";
 import { motion } from "motion/react";
 import type { NimbiActivity } from "../telemetry/contract";
 import {
@@ -27,7 +28,19 @@ export function NimbiCloud({
   className = "",
 }: NimbiCloudProps) {
   const profile = motionForActivity(activity);
-  const motionDisabled = reducedMotion || hidden;
+  const [documentVisible, setDocumentVisible] = useState(
+    () => typeof document === "undefined" || document.visibilityState !== "hidden",
+  );
+
+  useEffect(() => {
+    if (typeof document === "undefined") return;
+    const onVisibilityChange = () =>
+      setDocumentVisible(document.visibilityState !== "hidden");
+    document.addEventListener("visibilitychange", onVisibilityChange);
+    return () => document.removeEventListener("visibilitychange", onVisibilityChange);
+  }, []);
+
+  const motionDisabled = reducedMotion || hidden || !documentVisible;
   const gaze =
     !motionDisabled && pointer
       ? clampGaze(pointer.x, pointer.y, bounds)

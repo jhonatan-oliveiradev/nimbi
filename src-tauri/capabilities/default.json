@@ -1,7 +1,15 @@
 {
   "$schema": "../gen/schemas/desktop-schema.json",
   "identifier": "default",
-  "description": "Default Nimbi island capability",
-  "windows": ["island"],
-  "permissions": ["core:default"]
+  "description": "Nimbi island capability: listen to Rust-emitted local state events only",
+  "windows": [
+    "island"
+  ],
+  "permissions": [
+    "core:event:allow-listen",
+    "core:event:allow-unlisten"
+  ],
+  "platforms": [
+    "windows"
+  ]
 }

@@ -10,7 +10,9 @@
     "test:run": "vitest run",
     "tauri": "tauri",
     "tauri:dev": "tauri dev",
-    "tauri:build": "tauri build"
+    "tauri:build": "tauri build",
+    "desktop:rust": "cargo run --manifest-path src-tauri/Cargo.toml --no-default-features",
+    "desktop:build:rust": "cargo build --manifest-path src-tauri/Cargo.toml"
   },
   "dependencies": {
     "@tauri-apps/api": "^2.8.0",

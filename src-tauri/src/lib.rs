@@ -84,8 +84,8 @@ fn reposition(app: AppHandle, state: State<'_, RuntimeState>) {
     );
 }
 
-fn cursor_poll_should_run(collapsed: bool, interactive: bool) -> bool {
-    !collapsed && !interactive
+fn cursor_poll_should_run(collapsed: bool, _interactive: bool) -> bool {
+    !collapsed
 }
 
 fn polling_delay(hidden: bool, activity: &NimbiActivity) -> Duration {
@@ -167,10 +167,10 @@ mod runtime_tests {
     use super::*;
 
     #[test]
-    fn cursor_poll_parks_when_collapsed_or_interactive() {
+    fn cursor_poll_stays_active_for_visible_interactive_islands() {
         assert!(cursor_poll_should_run(false, false));
+        assert!(cursor_poll_should_run(false, true));
         assert!(!cursor_poll_should_run(true, false));
-        assert!(!cursor_poll_should_run(false, true));
         assert!(!cursor_poll_should_run(true, true));
     }
 

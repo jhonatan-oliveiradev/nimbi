@@ -97,6 +97,36 @@ describe("DynamicIsland", () => {
     rectSpy.mockRestore();
   });
 
+  it("uses the character bounds rather than the whole island for gaze", () => {
+    const rectSpy = vi
+      .spyOn(Element.prototype, "getBoundingClientRect")
+      .mockImplementation(function (this: Element) {
+        const isCharacter = this.classList.contains("nimbi-island__character");
+        return {
+          x: isCharacter ? 14 : 0,
+          y: 0,
+          width: isCharacter ? 48 : 292,
+          height: isCharacter ? 36 : 48,
+          top: 0,
+          right: isCharacter ? 62 : 292,
+          bottom: isCharacter ? 36 : 48,
+          left: isCharacter ? 14 : 0,
+          toJSON: () => ({}),
+        } as DOMRect;
+      });
+
+    render(<DynamicIsland snapshot={NIMBI_FIXTURES.working} mode="compact" />);
+    fireEvent.pointerMove(screen.getByTestId("nimbi-island"), {
+      clientX: 62,
+      clientY: 18,
+    });
+
+    expect(Number(screen.getByTestId("nimbi-cloud").getAttribute("data-gaze-x"))).toBeGreaterThan(
+      0.8,
+    );
+    rectSpy.mockRestore();
+  });
+
   it("reports rendered island bounds to the native shell", () => {
     const onBoundsChange = vi.fn();
     const rectSpy = vi.spyOn(Element.prototype, "getBoundingClientRect").mockReturnValue({

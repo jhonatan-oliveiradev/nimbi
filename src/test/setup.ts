@@ -5,3 +5,10 @@ import { afterEach } from "vitest";
 afterEach(() => {
   cleanup();
 });
+
+if (typeof globalThis.PointerEvent === "undefined") {
+  Object.defineProperty(globalThis, "PointerEvent", {
+    configurable: true,
+    value: MouseEvent,
+  });
+}
