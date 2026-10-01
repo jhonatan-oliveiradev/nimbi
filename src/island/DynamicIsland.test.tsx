@@ -1,4 +1,4 @@
-import { render, screen } from "@testing-library/react";
+import { fireEvent, render, screen } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 import { NIMBI_FIXTURES } from "../telemetry/fixtures";
 import { DynamicIsland } from "./DynamicIsland";
@@ -59,6 +59,32 @@ describe("DynamicIsland", () => {
     const shell = screen.getByTestId("nimbi-island");
     expect(shell).toHaveAttribute("data-muted", "true");
     expect(screen.queryByTestId("nimbi-attention")).toBeNull();
+  });
+
+  it("feeds pointer movement into the Nimbi character", () => {
+    const rectSpy = vi.spyOn(Element.prototype, "getBoundingClientRect").mockReturnValue({
+      x: 242,
+      y: 0,
+      width: 156,
+      height: 40,
+      top: 0,
+      right: 398,
+      bottom: 40,
+      left: 242,
+      toJSON: () => ({}),
+    } as DOMRect);
+
+    render(<DynamicIsland snapshot={NIMBI_FIXTURES.idle} mode="idle" />);
+    fireEvent.pointerMove(screen.getByTestId("nimbi-island"), {
+      clientX: 390,
+      clientY: 20,
+    });
+
+    expect(screen.getByTestId("nimbi-cloud")).not.toHaveAttribute(
+      "data-gaze-x",
+      "0",
+    );
+    rectSpy.mockRestore();
   });
 
   it("reports rendered island bounds to the native shell", () => {
