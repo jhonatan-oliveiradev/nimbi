@@ -20,7 +20,8 @@ The foundation release reads normalized local telemetry from RunOptic. It does n
 - React 19 / TypeScript
 - Vite
 - Motion
-- SVG
+- Bible Strong procedural avatar runtime (Cloudee)
+- SVG fallback
 - Windows WebView2
 
 ## Browser-first visual development
@@ -38,7 +39,7 @@ Then open:
 http://localhost:5173/dev/island-preview.html
 ```
 
-The preview uses the same React, SVG, state, and island components as the Tauri app. It provides fixtures for idle, thinking, working, needs-input, complete, error, and offline.
+The preview uses the same React, Cloudee runtime, behavior controller, placement state, and island components as the Tauri app. It provides semantic fixtures for idle, thinking, working, needs-input, complete, error, and offline, plus deterministic placement fixtures for every dock edge and floating corners. Hover, click, and drag exercise the production direct-interaction behavior.
 
 ### Placement & Presence
 
@@ -137,4 +138,4 @@ The current Nimbi foundation:
 
 ## Third-party source
 
-Nimbi uses original branding, character artwork, and motion. Some Windows shell architecture is adapted from the MIT-licensed Coucou project. See [THIRD_PARTY_NOTICES.md](./THIRD_PARTY_NOTICES.md).
+Nimbi uses original product branding, behavior, shell, and interaction design. Its primary cloud avatar is the exported Cloudee procedural avatar rendered with the Bible Strong avatar runtime; the previous original SVG cloud remains only as a safe runtime fallback. Some Windows shell architecture is adapted from the MIT-licensed Coucou project. See [THIRD_PARTY_NOTICES.md](./THIRD_PARTY_NOTICES.md).
