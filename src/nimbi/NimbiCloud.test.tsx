@@ -69,6 +69,20 @@ describe("NimbiCloud", () => {
     expect(cloud).toHaveAttribute("data-looping", "false");
   });
 
+  it("applies presence opacity to the character surface only", () => {
+    render(
+      <NimbiCloud
+        activity="working"
+        passiveOpacity={0.25}
+        interaction="passive"
+      />,
+    );
+    expect(screen.getByTestId("nimbi-cloud")).toHaveAttribute(
+      "data-effective-opacity",
+      "0.65",
+    );
+  });
+
   it("keeps offline inspectable", () => {
     render(<NimbiCloud activity="offline" />);
     expect(screen.getByTestId("nimbi-cloud")).toHaveAttribute(
