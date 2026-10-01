@@ -1,5 +1,6 @@
 import { act, renderHook } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import type { NimbiActivity } from "../telemetry/contract";
 import {
   COMPLETE_REACTION_MS,
   HOVER_LEAVE_DEBOUNCE_MS,
@@ -66,7 +67,7 @@ describe("useNimbiBehavior", () => {
           islandOpen: false,
           reducedMotion: false,
         }),
-      { initialProps: { activity: "working" as const } },
+      { initialProps: { activity: "working" as NimbiActivity } },
     );
 
     rerender({ activity: "complete" as const });
