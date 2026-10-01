@@ -259,3 +259,43 @@ async fn unreachable_transport_is_offline() {
 fn rejects_non_loopback_base_urls() {
     assert!(RunOpticClient::with_base_url("http://example.com").is_err());
 }
+
+#[test]
+fn later_activity_supersedes_stale_error_when_poll_timestamps_match() {
+    let derived = derive_snapshot(
+        &raw(
+            vec![session("work", "Codex", "working", 100, None)],
+            vec![
+                activity(
+                    "old-error",
+                    "tool_completed",
+                    "work",
+                    "Codex",
+                    100,
+                    Some("Old failure"),
+                ),
+                activity("new-query", "query_started", "work", "Codex", 100, None),
+            ],
+        ),
+        None,
+    );
+
+    assert_eq!(derived.activity, NimbiActivity::Thinking);
+    assert_eq!(derived.summary, None);
+}
+
+#[test]
+fn vector_order_breaks_equal_observed_at_ties_for_one_session() {
+    let derived = derive_snapshot(
+        &raw(
+            vec![session("work", "Codex", "working", 100, None)],
+            vec![
+                activity("query", "query_started", "work", "Codex", 100, None),
+                activity("tool", "tool_completed", "work", "Codex", 100, None),
+            ],
+        ),
+        None,
+    );
+
+    assert_eq!(derived.activity, NimbiActivity::Working);
+}
