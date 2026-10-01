@@ -70,3 +70,30 @@ impl NimbiSnapshot {
         }
     }
 }
+
+use std::sync::atomic::AtomicBool;
+use std::sync::{Arc, Mutex};
+
+use crate::window::WindowGate;
+
+pub struct RuntimeState {
+    pub snapshot: Mutex<NimbiSnapshot>,
+    pub hidden: AtomicBool,
+    pub window_gate: Arc<WindowGate>,
+}
+
+impl RuntimeState {
+    pub fn new() -> Self {
+        Self {
+            snapshot: Mutex::new(NimbiSnapshot::offline()),
+            hidden: AtomicBool::new(false),
+            window_gate: Arc::new(WindowGate::new()),
+        }
+    }
+}
+
+impl Default for RuntimeState {
+    fn default() -> Self {
+        Self::new()
+    }
+}
