@@ -35,13 +35,12 @@ fn get_preferences(state: State<'_, RuntimeState>) -> NimbiPreferences {
         .clone()
 }
 
-#[tauri::command]
-fn set_preferences(
-    preferences: NimbiPreferences,
-    app: AppHandle,
-    state: State<'_, RuntimeState>,
+fn store_preferences(
+    next: NimbiPreferences,
+    app: &AppHandle,
+    state: &RuntimeState,
 ) -> Result<NimbiPreferences, String> {
-    let normalized = preferences.normalized();
+    let normalized = next.normalized();
 
     let path = state
         .preferences_path
@@ -53,14 +52,60 @@ fn set_preferences(
         preferences::save(&path, &normalized).map_err(|error| error.to_string())?;
     }
 
+    state
+        .window_gate
+        .set_placement(normalized.placement.clone());
+
     *state
         .preferences
         .lock()
         .map_err(|_| "Nimbi preferences lock poisoned".to_string())? =
         normalized.clone();
 
+    let collapsed = state.window_gate.collapsed.load(Ordering::Relaxed);
+    let _ = window::apply_geometry(app, &normalized.placement, collapsed);
     let _ = app.emit("nimbi://preferences", &normalized);
     Ok(normalized)
+}
+
+#[tauri::command]
+fn set_preferences(
+    preferences: NimbiPreferences,
+    app: AppHandle,
+    state: State<'_, RuntimeState>,
+) -> Result<NimbiPreferences, String> {
+    store_preferences(preferences, &app, &state)
+}
+
+#[tauri::command]
+fn get_shell_layout(
+    app: AppHandle,
+    state: State<'_, RuntimeState>,
+) -> Option<window::ShellLayoutPayload> {
+    let placement = state.window_gate.placement();
+    window::shell_layout(
+        &app,
+        &placement,
+        state.window_gate.collapsed.load(Ordering::Relaxed),
+    )
+}
+
+#[tauri::command]
+fn resolve_placement_from_cursor(
+    app: AppHandle,
+    state: State<'_, RuntimeState>,
+) -> Result<Option<NimbiPreferences>, String> {
+    let Some(placement) = window::resolve_placement_from_cursor(&app, 64.0) else {
+        return Ok(None);
+    };
+
+    let mut preferences = state
+        .preferences
+        .lock()
+        .map_err(|_| "Nimbi preferences lock poisoned".to_string())?
+        .clone();
+    preferences.placement = placement;
+    store_preferences(preferences, &app, &state).map(Some)
 }
 
 
@@ -72,7 +117,8 @@ fn set_visibility_hint(hidden: bool, state: State<'_, RuntimeState>) {
 #[tauri::command]
 fn set_collapsed(collapsed: bool, app: AppHandle, state: State<'_, RuntimeState>) {
     state.window_gate.collapsed.store(collapsed, Ordering::Relaxed);
-    window::apply_geometry(&app, collapsed);
+    let placement = state.window_gate.placement();
+    let _ = window::apply_geometry(&app, &placement, collapsed);
     let interactive = state.interactive.load(Ordering::Relaxed);
     state
         .window_gate
@@ -120,8 +166,10 @@ fn set_interactive(interactive: bool, app: AppHandle, state: State<'_, RuntimeSt
 
 #[tauri::command]
 fn reposition(app: AppHandle, state: State<'_, RuntimeState>) {
-    window::apply_geometry(
+    let placement = state.window_gate.placement();
+    let _ = window::apply_geometry(
         &app,
+        &placement,
         state.window_gate.collapsed.load(Ordering::Relaxed),
     );
 }
@@ -184,6 +232,8 @@ pub fn run() {
             get_nimbi_snapshot,
             get_preferences,
             set_preferences,
+            get_shell_layout,
+            resolve_placement_from_cursor,
             set_visibility_hint,
             set_collapsed,
             set_island_rect,
@@ -197,6 +247,7 @@ pub fn run() {
             if let Ok(config_dir) = app.path().app_config_dir() {
                 let path = config_dir.join("preferences.json");
                 let loaded = preferences::load_or_default(&path);
+                state.window_gate.set_placement(loaded.placement.clone());
                 *state
                     .preferences
                     .lock()
@@ -205,12 +256,21 @@ pub fn run() {
                     .preferences_path
                     .lock()
                     .expect("Nimbi preferences path lock poisoned") = Some(path);
+            } else {
+                let placement = state
+                    .preferences
+                    .lock()
+                    .expect("Nimbi preferences lock poisoned")
+                    .placement
+                    .clone();
+                state.window_gate.set_placement(placement);
             }
 
             if let Some(win) = window::window(&handle) {
                 window::make_non_activating(&win);
             }
-            window::apply_geometry(&handle, false);
+            let placement = state.window_gate.placement();
+            let _ = window::apply_geometry(&handle, &placement, false);
             state.window_gate.set_active(true);
             window::spawn_cursor_poll(handle.clone(), state.window_gate.clone());
             start_runoptic_poll(handle);
