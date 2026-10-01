@@ -100,23 +100,53 @@ function placementStyle(
     }
   }
 
-  const translate = !expanded
-    ? "-50% -50%"
-    : direction === "down"
-      ? "-50% 0"
-      : direction === "up"
-        ? "-50% -100%"
-        : direction === "right"
-          ? "0 -50%"
-          : "-100% -50%";
+  const preferredTop = `${placement.y * 100}%`;
+  const preferredLeft = `${placement.x * 100}%`;
 
-  return {
-    top: `${placement.y * 100}%`,
-    left: `${placement.x * 100}%`,
-    right: "auto",
-    bottom: "auto",
-    translate,
-  };
+  if (!expanded) {
+    return {
+      top: `clamp(calc(var(--island-height) / 2), ${preferredTop}, calc(100% - var(--island-height) / 2))`,
+      left: `clamp(calc(var(--island-width) / 2), ${preferredLeft}, calc(100% - var(--island-width) / 2))`,
+      right: "auto",
+      bottom: "auto",
+      translate: "-50% -50%",
+    };
+  }
+
+  switch (direction) {
+    case "down":
+      return {
+        top: `clamp(0px, ${preferredTop}, calc(100% - var(--island-height)))`,
+        left: `clamp(calc(var(--island-width) / 2), ${preferredLeft}, calc(100% - var(--island-width) / 2))`,
+        right: "auto",
+        bottom: "auto",
+        translate: "-50% 0",
+      };
+    case "up":
+      return {
+        top: `clamp(var(--island-height), ${preferredTop}, 100%)`,
+        left: `clamp(calc(var(--island-width) / 2), ${preferredLeft}, calc(100% - var(--island-width) / 2))`,
+        right: "auto",
+        bottom: "auto",
+        translate: "-50% -100%",
+      };
+    case "right":
+      return {
+        top: `clamp(calc(var(--island-height) / 2), ${preferredTop}, calc(100% - var(--island-height) / 2))`,
+        left: `clamp(0px, ${preferredLeft}, calc(100% - var(--island-width)))`,
+        right: "auto",
+        bottom: "auto",
+        translate: "0 -50%",
+      };
+    case "left":
+      return {
+        top: `clamp(calc(var(--island-height) / 2), ${preferredTop}, calc(100% - var(--island-height) / 2))`,
+        left: `clamp(var(--island-width), ${preferredLeft}, 100%)`,
+        right: "auto",
+        bottom: "auto",
+        translate: "-100% -50%",
+      };
+  }
 }
 
 export function DynamicIsland({
