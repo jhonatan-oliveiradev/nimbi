@@ -37,6 +37,33 @@ describe("useNimbiDrag", () => {
     expect(commit).not.toHaveBeenCalled();
   });
 
+  it("fires drag lifecycle callbacks only after crossing the movement threshold", () => {
+    const onDragStart = vi.fn();
+    const onDragMove = vi.fn();
+    const onDragEnd = vi.fn();
+    const { result } = renderHook(() =>
+      useNimbiDrag({
+        placement: startPlacement,
+        workArea: area,
+        onDragStart,
+        onDragMove,
+        onDragEnd,
+      }),
+    );
+
+    act(() => result.current.begin({ x: 500, y: 10 }));
+    act(() => result.current.move({ x: 503, y: 12 }));
+    expect(onDragStart).not.toHaveBeenCalled();
+    expect(onDragMove).not.toHaveBeenCalled();
+
+    act(() => result.current.move({ x: 508, y: 10 }));
+    expect(onDragStart).toHaveBeenCalledTimes(1);
+    expect(onDragMove).toHaveBeenCalledTimes(1);
+
+    act(() => result.current.end({ x: 520, y: 200 }));
+    expect(onDragEnd).toHaveBeenCalledTimes(1);
+  });
+
   it("starts dragging after six logical pixels and previews edge snapping", () => {
     const preview = vi.fn();
     const { result } = renderHook(() =>
