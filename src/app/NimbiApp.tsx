@@ -1,5 +1,6 @@
 import { invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
+import { getCurrentWindow } from "@tauri-apps/api/window";
 import { useReducedMotion } from "motion/react";
 import { useCallback, useEffect, useRef, useState, type PointerEventHandler } from "react";
 import { DynamicIsland } from "../island/DynamicIsland";
@@ -13,6 +14,7 @@ import {
   type ViewportRect,
 } from "../placement/placement";
 import { NIMBI_FIXTURES } from "../telemetry/fixtures";
+import { useNimbiPreferences } from "../placement/use-nimbi-preferences";
 import { useNimbiSnapshot } from "../telemetry/use-nimbi-snapshot";
 
 export interface NimbiAppProps {
@@ -56,17 +58,46 @@ export function NimbiApp({
   fixtureOnly = false,
   reducedMotion = false,
   onToggle,
-  placement = DEFAULT_PLACEMENT,
-  presence = DEFAULT_PRESENCE,
+  placement,
+  presence,
   viewport,
-  dragging = false,
+  dragging,
   anchor,
   onCharacterPointerDown,
 }: NimbiAppProps) {
   const nativeRuntime = snapshot === undefined && isTauriRuntime();
   const liveSnapshot = useNimbiSnapshot(nativeRuntime);
+  const nativePreferences = useNimbiPreferences(nativeRuntime);
   const currentSnapshot =
     snapshot ?? (nativeRuntime ? liveSnapshot : NIMBI_FIXTURES.idle);
+  const currentPlacement =
+    placement ??
+    (nativeRuntime
+      ? nativePreferences.preferences.placement
+      : DEFAULT_PLACEMENT);
+  const currentPresence =
+    presence ??
+    (nativeRuntime
+      ? nativePreferences.preferences.presence
+      : DEFAULT_PRESENCE);
+  const currentViewport =
+    viewport ??
+    (nativeRuntime && nativePreferences.layout
+      ? {
+          width: nativePreferences.layout.viewportWidth,
+          height: nativePreferences.layout.viewportHeight,
+        }
+      : typeof window !== "undefined"
+        ? { width: window.innerWidth, height: window.innerHeight }
+        : { width: 1200, height: 800 });
+  const currentAnchor =
+    anchor ??
+    (nativeRuntime && nativePreferences.layout
+      ? {
+          x: nativePreferences.layout.anchorX,
+          y: nativePreferences.layout.anchorY,
+        }
+      : undefined);
   const prefersReducedMotion = useReducedMotion();
   const motionReduced = reducedMotion || Boolean(prefersReducedMotion);
 
@@ -78,6 +109,15 @@ export function NimbiApp({
     defaultMode(currentSnapshot),
   );
   const [desktopPointer, setDesktopPointer] = useState<{ x: number; y: number }>();
+  const [nativeDragging, setNativeDragging] = useState(false);
+  const nativeDragRef = useRef<{
+    pointerId: number;
+    startX: number;
+    startY: number;
+    started: boolean;
+  } | null>(null);
+  const dragSettleTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const suppressToggleRef = useRef(false);
 
   useEffect(() => {
     machine.onTransition = (_from, next) => setMachineMode(next);
@@ -132,6 +172,101 @@ export function NimbiApp({
     return () => window.removeEventListener("pointermove", wake);
   }, [machine, nativeRuntime, renderedMode]);
 
+  useEffect(() => {
+    if (!nativeRuntime || onCharacterPointerDown) return;
+
+    const appWindow = getCurrentWindow();
+    let disposed = false;
+    let unlistenMoved: (() => void) | undefined;
+
+    const clearSettleTimer = () => {
+      if (dragSettleTimerRef.current !== null) {
+        clearTimeout(dragSettleTimerRef.current);
+        dragSettleTimerRef.current = null;
+      }
+    };
+
+    const finishDrag = () => {
+      const drag = nativeDragRef.current;
+      if (!drag?.started || disposed) return;
+      nativeDragRef.current = null;
+      clearSettleTimer();
+      setNativeDragging(false);
+      suppressToggleRef.current = true;
+      void invoke("resolve_placement_from_cursor").finally(() => {
+        window.setTimeout(() => {
+          suppressToggleRef.current = false;
+        }, 80);
+      });
+    };
+
+    const scheduleFinish = () => {
+      clearSettleTimer();
+      dragSettleTimerRef.current = window.setTimeout(finishDrag, 260);
+    };
+
+    const onPointerMove = (event: PointerEvent) => {
+      const drag = nativeDragRef.current;
+      if (!drag || drag.started || event.pointerId !== drag.pointerId) return;
+      const distance = Math.hypot(
+        event.clientX - drag.startX,
+        event.clientY - drag.startY,
+      );
+      if (distance < 5) return;
+
+      drag.started = true;
+      suppressToggleRef.current = true;
+      setNativeDragging(true);
+      void appWindow.startDragging().catch(() => {
+        nativeDragRef.current = null;
+        setNativeDragging(false);
+        suppressToggleRef.current = false;
+      });
+    };
+
+    const onPointerUp = (event: PointerEvent) => {
+      const drag = nativeDragRef.current;
+      if (!drag || event.pointerId !== drag.pointerId) return;
+      if (!drag.started) {
+        nativeDragRef.current = null;
+        return;
+      }
+      scheduleFinish();
+    };
+
+    window.addEventListener("pointermove", onPointerMove, { passive: true });
+    window.addEventListener("pointerup", onPointerUp, { passive: true });
+    window.addEventListener("pointercancel", onPointerUp, { passive: true });
+
+    void appWindow.onMoved(() => {
+      if (nativeDragRef.current?.started) scheduleFinish();
+    }).then((stop) => {
+      if (disposed) stop();
+      else unlistenMoved = stop;
+    }).catch(() => {});
+
+    return () => {
+      disposed = true;
+      clearSettleTimer();
+      unlistenMoved?.();
+      window.removeEventListener("pointermove", onPointerMove);
+      window.removeEventListener("pointerup", onPointerUp);
+      window.removeEventListener("pointercancel", onPointerUp);
+    };
+  }, [nativeRuntime, onCharacterPointerDown]);
+
+  const handleNativeCharacterPointerDown: PointerEventHandler<HTMLDivElement> = (
+    event,
+  ) => {
+    if (!nativeRuntime || onCharacterPointerDown || event.button !== 0) return;
+    nativeDragRef.current = {
+      pointerId: event.pointerId,
+      startX: event.clientX,
+      startY: event.clientY,
+      started: false,
+    };
+  };
+
   const reportBounds = useCallback(
     (rect: { x: number; y: number; width: number; height: number }) => {
       if (!nativeRuntime) return;
@@ -141,6 +276,7 @@ export function NimbiApp({
   );
 
   const handleToggle = () => {
+    if (suppressToggleRef.current) return;
     if (onToggle) {
       onToggle();
       return;
@@ -159,17 +295,14 @@ export function NimbiApp({
       onPointerEnter={mode === undefined ? () => machine.pointerEnter() : undefined}
       onPointerLeave={mode === undefined ? () => machine.pointerLeave() : undefined}
       pointer={desktopPointer}
-      placement={placement}
-      presence={presence}
-      viewport={
-        viewport ??
-        (typeof window !== "undefined"
-          ? { width: window.innerWidth, height: window.innerHeight }
-          : { width: 1200, height: 800 })
+      placement={currentPlacement}
+      presence={currentPresence}
+      viewport={currentViewport}
+      dragging={dragging ?? nativeDragging}
+      anchor={currentAnchor}
+      onCharacterPointerDown={
+        onCharacterPointerDown ?? handleNativeCharacterPointerDown
       }
-      dragging={dragging}
-      anchor={anchor}
-      onCharacterPointerDown={onCharacterPointerDown}
     />
   );
 }
