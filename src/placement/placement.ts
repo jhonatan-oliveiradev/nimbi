@@ -53,7 +53,8 @@ export const DEFAULT_PRESENCE: NimbiPresence = {
 
 export const HORIZONTAL_HOST = { width: 640, height: 300 } as const;
 export const VERTICAL_HOST = { width: 300, height: 640 } as const;
-export const FLOATING_HOST = { width: 420, height: 220 } as const;
+export const FLOATING_HORIZONTAL_HOST = { width: 420, height: 300 } as const;
+export const FLOATING_VERTICAL_HOST = { width: 300, height: 420 } as const;
 
 function clamp01(value: number): number {
   if (!Number.isFinite(value)) return 0.5;
@@ -171,7 +172,9 @@ export function hostRectForPlacement(
   const orientation = deriveOrientation(normalized, viewport);
   const rawSize =
     normalized.mode === "floating"
-      ? FLOATING_HOST
+      ? orientation === "vertical"
+        ? FLOATING_VERTICAL_HOST
+        : FLOATING_HORIZONTAL_HOST
       : orientation === "vertical"
         ? VERTICAL_HOST
         : HORIZONTAL_HOST;
