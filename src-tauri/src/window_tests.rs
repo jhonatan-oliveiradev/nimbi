@@ -150,7 +150,7 @@ fn docked_geometry_uses_work_area_and_monitor_scale() {
         false,
     );
     assert_eq!(left.x, 100);
-    assert_eq!(left.y, 50 + (960.0 * 0.25).round() as i32 - 60);
+    assert_eq!(left.y, 50 + 240 - 60);
 
     let right = placement_window_geometry(
         &monitor,
