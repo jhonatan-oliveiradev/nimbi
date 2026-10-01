@@ -32,6 +32,13 @@ export type NimbiPlacement =
       y: number;
     };
 
+export const DEFAULT_PLACEMENT: NimbiPlacement = {
+  mode: "docked",
+  monitorId: "primary",
+  edge: "top",
+  offset: 0.5,
+};
+
 const clamp01 = (value: number) => Math.min(1, Math.max(0, value));
 
 export function orientationForPlacement(
