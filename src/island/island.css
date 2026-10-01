@@ -55,6 +55,42 @@
   color: rgb(255 255 255 / 58%);
 }
 
+.nimbi-island[data-edge="bottom"] {
+  border-top: 1px solid rgb(255 255 255 / 7%);
+  border-bottom: 0;
+  border-radius: 20px 20px 0 0;
+  transform-origin: bottom center;
+}
+
+.nimbi-island[data-edge="left"] {
+  border-top: 1px solid rgb(255 255 255 / 7%);
+  border-left: 0;
+  border-radius: 0 20px 20px 0;
+  transform-origin: center left;
+}
+
+.nimbi-island[data-edge="right"] {
+  border-top: 1px solid rgb(255 255 255 / 7%);
+  border-right: 0;
+  border-radius: 20px 0 0 20px;
+  transform-origin: center right;
+}
+
+.nimbi-island[data-edge="floating"] {
+  border-top: 1px solid rgb(255 255 255 / 7%);
+  border-radius: 999px;
+  transform-origin: center;
+}
+
+.nimbi-island[data-dragging="true"] {
+  --island-width: 76px;
+  --island-height: 48px;
+  border: 1px solid rgb(255 255 255 / 9%);
+  border-radius: 999px;
+  box-shadow: 0 16px 34px rgb(0 0 0 / 42%);
+  cursor: grabbing;
+}
+
 .nimbi-island__character {
   position: absolute;
   z-index: 2;
@@ -63,6 +99,8 @@
   width: 58px;
   height: 36px;
   transform: translateX(-50%);
+  cursor: grab;
+  touch-action: none;
   transition:
     left 280ms cubic-bezier(.2,.8,.2,1),
     transform 280ms cubic-bezier(.2,.8,.2,1),
@@ -197,6 +235,146 @@
   opacity: 1;
 }
 
+.nimbi-island__presence-controls {
+  display: grid;
+  gap: 8px;
+  width: 100%;
+  margin-top: auto;
+}
+
+.nimbi-island__opacity-control {
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  align-items: center;
+  gap: 8px;
+  color: var(--nimbi-muted);
+  font-size: 10px;
+}
+
+.nimbi-island__opacity-control input {
+  width: 100%;
+  accent-color: var(--nimbi-lilac);
+}
+
+.nimbi-island__opacity-control output {
+  width: 30px;
+  color: rgb(255 255 255 / 64%);
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+}
+
+.nimbi-island__reset-position {
+  height: 28px;
+  color: rgb(255 255 255 / 68%);
+  background: #17171d;
+  border: 1px solid rgb(255 255 255 / 7%);
+  border-radius: 14px;
+}
+
+.nimbi-island__reset-position:hover {
+  color: #fff;
+  border-color: rgb(185 168 255 / 30%);
+}
+
+
+.nimbi-island[data-edge="bottom"] .nimbi-island__character {
+  top: auto;
+  bottom: 0;
+}
+
+.nimbi-island[data-edge="bottom"][data-mode="attention"] .nimbi-island__details,
+.nimbi-island[data-edge="bottom"][data-mode="expanded"] .nimbi-island__details {
+  inset: 14px 20px 46px;
+  justify-content: flex-end;
+}
+
+.nimbi-island[data-orientation="vertical"][data-mode="compact"] {
+  --island-width: 104px;
+  --island-height: 156px;
+  border-radius: 0 24px 24px 0;
+}
+
+.nimbi-island[data-orientation="vertical"][data-edge="right"][data-mode="compact"] {
+  border-radius: 24px 0 0 24px;
+}
+
+.nimbi-island[data-orientation="vertical"][data-mode="attention"] {
+  --island-width: 190px;
+  --island-height: 268px;
+}
+
+.nimbi-island[data-orientation="vertical"][data-mode="expanded"] {
+  --island-width: 184px;
+  --island-height: 222px;
+}
+
+.nimbi-island[data-orientation="vertical"] .nimbi-island__character,
+.nimbi-island[data-orientation="vertical"][data-mode="compact"] .nimbi-island__character,
+.nimbi-island[data-orientation="vertical"][data-mode="attention"] .nimbi-island__character,
+.nimbi-island[data-orientation="vertical"][data-mode="expanded"] .nimbi-island__character {
+  top: 12px;
+  bottom: auto;
+  left: 50%;
+  width: 52px;
+  transform: translateX(-50%);
+}
+
+.nimbi-island[data-orientation="vertical"] .nimbi-island__compact-copy {
+  inset: 72px 12px 14px;
+  flex-direction: column;
+  justify-content: flex-start;
+  gap: 8px;
+  text-align: center;
+}
+
+.nimbi-island[data-orientation="vertical"] .nimbi-island__compact-text {
+  align-items: center;
+  gap: 5px;
+}
+
+.nimbi-island[data-orientation="vertical"] .nimbi-island__status,
+.nimbi-island[data-orientation="vertical"] .nimbi-island__compact-meta {
+  width: 100%;
+  white-space: normal;
+}
+
+.nimbi-island[data-orientation="vertical"] .nimbi-island__details {
+  inset: 76px 16px 16px;
+  justify-content: flex-start;
+}
+
+.nimbi-island[data-orientation="vertical"] .nimbi-island__headline,
+.nimbi-island[data-orientation="vertical"] .nimbi-island__meta {
+  white-space: normal;
+  text-align: center;
+}
+
+.nimbi-island[data-orientation="vertical"] .nimbi-island__fixture-actions {
+  grid-template-columns: 1fr;
+  margin-top: auto;
+}
+
+.nimbi-island[data-orientation="vertical"] .nimbi-island__presence-controls {
+  margin-top: 14px;
+}
+
+.nimbi-island[data-orientation="vertical"] .nimbi-island__opacity-control {
+  grid-template-columns: 1fr auto;
+}
+
+.nimbi-island[data-orientation="vertical"] .nimbi-island__opacity-control span {
+  grid-column: 1 / -1;
+}
+
+.nimbi-island[data-dragging="true"] .nimbi-island__character {
+  top: 4px;
+  bottom: auto;
+  left: 50%;
+  width: 62px;
+  transform: translateX(-50%);
+  cursor: grabbing;
+}
+
 .nimbi-preview {
   position: fixed;
   inset: 0;
@@ -214,6 +392,70 @@
   height: 1px;
   background: rgb(255 255 255 / 8%);
   content: "";
+}
+
+.nimbi-placement-overlay {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 160ms ease;
+}
+
+.nimbi-preview:has(.nimbi-island[data-dragging="true"]) .nimbi-placement-overlay {
+  opacity: 1;
+}
+
+.nimbi-placement-overlay span {
+  position: absolute;
+  background: linear-gradient(90deg, transparent, rgb(185 168 255 / 26%), transparent);
+  filter: blur(.2px);
+}
+
+.nimbi-placement-overlay [data-edge="top"],
+.nimbi-placement-overlay [data-edge="bottom"] {
+  right: 18%;
+  left: 18%;
+  height: 2px;
+}
+
+.nimbi-placement-overlay [data-edge="top"] {
+  top: 12px;
+}
+
+.nimbi-placement-overlay [data-edge="bottom"] {
+  bottom: 12px;
+}
+
+.nimbi-placement-overlay [data-edge="left"],
+.nimbi-placement-overlay [data-edge="right"] {
+  top: 18%;
+  bottom: 18%;
+  width: 2px;
+  background: linear-gradient(180deg, transparent, rgb(185 168 255 / 26%), transparent);
+}
+
+.nimbi-placement-overlay [data-edge="left"] {
+  left: 12px;
+}
+
+.nimbi-placement-overlay [data-edge="right"] {
+  right: 12px;
+}
+
+.nimbi-preview__placement-readout {
+  position: fixed;
+  top: 18px;
+  left: 18px;
+  padding: 7px 10px;
+  color: rgb(255 255 255 / 48%);
+  font-size: 10px;
+  font-variant-numeric: tabular-nums;
+  background: rgb(5 5 7 / 56%);
+  border: 1px solid rgb(255 255 255 / 6%);
+  border-radius: 999px;
+  backdrop-filter: blur(14px);
+  pointer-events: none;
 }
 
 .nimbi-preview__controls {

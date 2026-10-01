@@ -1,7 +1,10 @@
+pub mod preferences;
 pub mod runoptic;
 pub mod state;
 pub mod window;
 
+#[cfg(test)]
+mod preferences_tests;
 #[cfg(test)]
 mod runoptic_tests;
 #[cfg(test)]
@@ -10,6 +13,9 @@ mod window_tests;
 use std::sync::atomic::Ordering;
 use std::time::Duration;
 
+use preferences::{
+    save_preferences_to, NimbiPlacement, NimbiPresence, PreferencesV1,
+};
 use state::{NimbiActivity, NimbiSnapshot, RuntimeState};
 use tauri::{AppHandle, Emitter, Manager, State};
 
@@ -23,6 +29,85 @@ fn get_nimbi_snapshot(state: State<'_, RuntimeState>) -> NimbiSnapshot {
 }
 
 #[tauri::command]
+fn get_preferences(state: State<'_, RuntimeState>) -> PreferencesV1 {
+    state
+        .preferences
+        .lock()
+        .expect("Nimbi preferences lock poisoned")
+        .clone()
+}
+
+fn current_logical_size(state: &RuntimeState) -> window::LogicalSize {
+    let rect = state.window_gate.rect();
+    window::LogicalSize {
+        width: if rect.w > 0.0 { rect.w } else { 144.0 },
+        height: if rect.h > 0.0 { rect.h } else { 38.0 },
+    }
+}
+
+fn apply_current_geometry(app: &AppHandle, state: &RuntimeState) {
+    let preferences = state
+        .preferences
+        .lock()
+        .expect("Nimbi preferences lock poisoned")
+        .clone();
+    window::apply_placement_geometry(
+        app,
+        &preferences.placement,
+        current_logical_size(state),
+        state.window_gate.collapsed.load(Ordering::Relaxed),
+    );
+}
+
+fn commit_preferences(
+    app: &AppHandle,
+    state: &RuntimeState,
+    next: PreferencesV1,
+) -> Result<PreferencesV1, String> {
+    let next = next.sanitized();
+    save_preferences_to(&state.preferences_path, &next)?;
+    *state
+        .preferences
+        .lock()
+        .expect("Nimbi preferences lock poisoned") = next.clone();
+    apply_current_geometry(app, state);
+    let _ = app.emit("nimbi://preferences", &next);
+    Ok(next)
+}
+
+#[tauri::command]
+fn save_placement(
+    placement: NimbiPlacement,
+    app: AppHandle,
+    state: State<'_, RuntimeState>,
+) -> Result<PreferencesV1, String> {
+    let mut next = get_preferences(state.clone());
+    next.placement = placement;
+    commit_preferences(&app, &state, next)
+}
+
+#[tauri::command]
+fn save_presence(
+    presence: NimbiPresence,
+    app: AppHandle,
+    state: State<'_, RuntimeState>,
+) -> Result<PreferencesV1, String> {
+    let mut next = get_preferences(state.clone());
+    next.presence = presence;
+    commit_preferences(&app, &state, next)
+}
+
+#[tauri::command]
+fn reset_placement(
+    app: AppHandle,
+    state: State<'_, RuntimeState>,
+) -> Result<PreferencesV1, String> {
+    let mut next = get_preferences(state.clone());
+    next.placement = NimbiPlacement::default();
+    commit_preferences(&app, &state, next)
+}
+
+#[tauri::command]
 fn set_visibility_hint(hidden: bool, state: State<'_, RuntimeState>) {
     state.hidden.store(hidden, Ordering::Relaxed);
 }
@@ -30,7 +115,7 @@ fn set_visibility_hint(hidden: bool, state: State<'_, RuntimeState>) {
 #[tauri::command]
 fn set_collapsed(collapsed: bool, app: AppHandle, state: State<'_, RuntimeState>) {
     state.window_gate.collapsed.store(collapsed, Ordering::Relaxed);
-    window::apply_geometry(&app, collapsed);
+    apply_current_geometry(&app, &state);
     let interactive = state.interactive.load(Ordering::Relaxed);
     state
         .window_gate
@@ -46,6 +131,7 @@ fn set_island_rect(
     y: f64,
     width: f64,
     height: f64,
+    app: AppHandle,
     state: State<'_, RuntimeState>,
 ) {
     state.window_gate.set_rect(window::IslandRect {
@@ -54,6 +140,9 @@ fn set_island_rect(
         w: width,
         h: height,
     });
+    if !state.dragging.load(Ordering::Relaxed) {
+        apply_current_geometry(&app, &state);
+    }
 }
 
 #[tauri::command]
@@ -78,10 +167,46 @@ fn set_interactive(interactive: bool, app: AppHandle, state: State<'_, RuntimeSt
 
 #[tauri::command]
 fn reposition(app: AppHandle, state: State<'_, RuntimeState>) {
-    window::apply_geometry(
-        &app,
-        state.window_gate.collapsed.load(Ordering::Relaxed),
-    );
+    apply_current_geometry(&app, &state);
+}
+
+#[tauri::command]
+fn begin_drag(app: AppHandle, state: State<'_, RuntimeState>) {
+    state.dragging.store(true, Ordering::Relaxed);
+    window::set_ignore_cursor(&app, false);
+    window::size_window_for_drag(&app);
+}
+
+#[tauri::command]
+fn move_drag(app: AppHandle, state: State<'_, RuntimeState>) {
+    if !state.dragging.load(Ordering::Relaxed) {
+        return;
+    }
+    if let Some(point) = window::cursor_screen_point() {
+        window::size_window_for_drag(&app);
+        window::move_window_centered_at(&app, point);
+    }
+}
+
+#[tauri::command]
+fn commit_drag(
+    app: AppHandle,
+    state: State<'_, RuntimeState>,
+) -> Result<PreferencesV1, String> {
+    state.dragging.store(false, Ordering::Relaxed);
+    let current = get_preferences(state.clone());
+    let point = window::cursor_screen_point().ok_or_else(|| "cursor unavailable".to_string())?;
+    let placement = window::placement_at_screen_point(&app, point, Some(&current.placement))
+        .ok_or_else(|| "no monitor available".to_string())?;
+    let mut next = current;
+    next.placement = placement;
+    commit_preferences(&app, &state, next)
+}
+
+#[tauri::command]
+fn cancel_drag(app: AppHandle, state: State<'_, RuntimeState>) {
+    state.dragging.store(false, Ordering::Relaxed);
+    apply_current_geometry(&app, &state);
 }
 
 fn cursor_poll_should_run(collapsed: bool, _interactive: bool) -> bool {
@@ -94,6 +219,26 @@ fn polling_delay(hidden: bool, activity: &NimbiActivity) -> Duration {
     } else {
         Duration::from_secs(2)
     }
+}
+
+fn start_monitor_watch(app: AppHandle) {
+    tauri::async_runtime::spawn(async move {
+        let mut previous = window::monitor_topology_key(&window::monitor_work_areas(&app));
+
+        loop {
+            tokio::time::sleep(Duration::from_secs(1)).await;
+            let next = window::monitor_topology_key(&window::monitor_work_areas(&app));
+            if next == previous {
+                continue;
+            }
+            previous = next;
+
+            let state = app.state::<RuntimeState>();
+            if !state.dragging.load(Ordering::Relaxed) {
+                apply_current_geometry(&app, &state);
+            }
+        }
+    });
 }
 
 fn start_runoptic_poll(app: AppHandle) {
@@ -140,11 +285,19 @@ pub fn run() {
         .manage(RuntimeState::new())
         .invoke_handler(tauri::generate_handler![
             get_nimbi_snapshot,
+            get_preferences,
+            save_placement,
+            save_presence,
+            reset_placement,
             set_visibility_hint,
             set_collapsed,
             set_island_rect,
             set_interactive,
-            reposition
+            reposition,
+            begin_drag,
+            move_drag,
+            commit_drag,
+            cancel_drag
         ])
         .setup(|app| {
             let handle = app.handle().clone();
@@ -152,9 +305,10 @@ pub fn run() {
             if let Some(win) = window::window(&handle) {
                 window::make_non_activating(&win);
             }
-            window::apply_geometry(&handle, false);
+            apply_current_geometry(&handle, &state);
             state.window_gate.set_active(true);
             window::spawn_cursor_poll(handle.clone(), state.window_gate.clone());
+            start_monitor_watch(handle.clone());
             start_runoptic_poll(handle);
             Ok(())
         })

@@ -71,25 +71,37 @@ impl NimbiSnapshot {
     }
 }
 
+use std::path::PathBuf;
 use std::sync::atomic::AtomicBool;
 use std::sync::{Arc, Mutex};
 
+use crate::preferences::{
+    default_preferences_path, load_preferences_from, PreferencesV1,
+};
 use crate::window::WindowGate;
 
 pub struct RuntimeState {
     pub snapshot: Mutex<NimbiSnapshot>,
     pub hidden: AtomicBool,
     pub interactive: AtomicBool,
+    pub dragging: AtomicBool,
     pub window_gate: Arc<WindowGate>,
+    pub preferences: Mutex<PreferencesV1>,
+    pub preferences_path: PathBuf,
 }
 
 impl RuntimeState {
     pub fn new() -> Self {
+        let preferences_path = default_preferences_path();
+        let preferences = load_preferences_from(&preferences_path);
         Self {
             snapshot: Mutex::new(NimbiSnapshot::offline()),
             hidden: AtomicBool::new(false),
             interactive: AtomicBool::new(false),
+            dragging: AtomicBool::new(false),
             window_gate: Arc::new(WindowGate::new()),
+            preferences: Mutex::new(preferences),
+            preferences_path,
         }
     }
 }
