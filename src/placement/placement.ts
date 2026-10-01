@@ -37,6 +37,8 @@ export interface HostRect {
   y: number;
   width: number;
   height: number;
+  anchorX: number;
+  anchorY: number;
 }
 
 export const DEFAULT_PLACEMENT: NimbiPlacement = {
@@ -167,50 +169,67 @@ export function hostRectForPlacement(
 ): HostRect {
   const normalized = normalizePlacement(placement);
   const orientation = deriveOrientation(normalized, viewport);
-  const size =
+  const rawSize =
     normalized.mode === "floating"
       ? FLOATING_HOST
       : orientation === "vertical"
         ? VERTICAL_HOST
         : HORIZONTAL_HOST;
 
-  const maxX = Math.max(0, viewport.width - size.width);
-  const maxY = Math.max(0, viewport.height - size.height);
+  const width = Math.min(rawSize.width, Math.max(1, viewport.width));
+  const height = Math.min(rawSize.height, Math.max(1, viewport.height));
+  const maxX = Math.max(0, viewport.width - width);
+  const maxY = Math.max(0, viewport.height - height);
+
+  let targetX: number;
+  let targetY: number;
 
   if (normalized.mode === "floating") {
-    return {
-      x: clamp(normalized.x * viewport.width - size.width / 2, 0, maxX),
-      y: clamp(normalized.y * viewport.height - size.height / 2, 0, maxY),
-      ...size,
-    };
+    targetX = normalized.x * viewport.width;
+    targetY = normalized.y * viewport.height;
+  } else {
+    switch (normalized.edge) {
+      case "top":
+        targetX = normalized.offset * viewport.width;
+        targetY = 0;
+        break;
+      case "bottom":
+        targetX = normalized.offset * viewport.width;
+        targetY = viewport.height;
+        break;
+      case "left":
+        targetX = 0;
+        targetY = normalized.offset * viewport.height;
+        break;
+      case "right":
+        targetX = viewport.width;
+        targetY = normalized.offset * viewport.height;
+        break;
+    }
   }
 
-  switch (normalized.edge) {
-    case "top":
-      return {
-        x: clamp(normalized.offset * viewport.width - size.width / 2, 0, maxX),
-        y: 0,
-        ...size,
-      };
-    case "bottom":
-      return {
-        x: clamp(normalized.offset * viewport.width - size.width / 2, 0, maxX),
-        y: maxY,
-        ...size,
-      };
-    case "left":
-      return {
-        x: 0,
-        y: clamp(normalized.offset * viewport.height - size.height / 2, 0, maxY),
-        ...size,
-      };
-    case "right":
-      return {
-        x: maxX,
-        y: clamp(normalized.offset * viewport.height - size.height / 2, 0, maxY),
-        ...size,
-      };
-  }
+  const x =
+    normalized.mode === "docked" && normalized.edge === "left"
+      ? 0
+      : normalized.mode === "docked" && normalized.edge === "right"
+        ? maxX
+        : clamp(targetX - width / 2, 0, maxX);
+
+  const y =
+    normalized.mode === "docked" && normalized.edge === "top"
+      ? 0
+      : normalized.mode === "docked" && normalized.edge === "bottom"
+        ? maxY
+        : clamp(targetY - height / 2, 0, maxY);
+
+  return {
+    x,
+    y,
+    width,
+    height,
+    anchorX: clamp(targetX - x, 0, width),
+    anchorY: clamp(targetY - y, 0, height),
+  };
 }
 
 export function effectivePresence(
