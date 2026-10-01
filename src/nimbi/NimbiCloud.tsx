@@ -93,8 +93,8 @@ export function NimbiCloud({
       role="img"
       aria-label={`Nimbi: ${activity}`}
       initial={false}
+      style={{ opacity: presenceOpacity }}
       animate={{
-        opacity: profile.opacity * presenceOpacity,
         scaleX: profile.stretchX,
         scaleY: profile.stretchY,
         rotate: profile.tilt,
