@@ -42,3 +42,28 @@ jobs:
         run: cargo test --manifest-path src-tauri/Cargo.toml
       - name: Clippy
         run: cargo clippy --manifest-path src-tauri/Cargo.toml -- -D warnings
+
+  native-build:
+    runs-on: windows-latest
+    needs: [frontend, rust]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: src-tauri -> target
+      - name: Install dependencies
+        shell: pwsh
+        run: npm install
+      - name: Build native app
+        run: npm run tauri:build -- --debug
+      - name: Upload debug executable
+        if: success()
+        uses: actions/upload-artifact@v4
+        with:
+          name: nimbi-windows-debug
+          path: src-tauri/target/debug/nimbi.exe
+          if-no-files-found: error
