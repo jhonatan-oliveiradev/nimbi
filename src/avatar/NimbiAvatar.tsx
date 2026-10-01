@@ -155,7 +155,7 @@ function Eyes({
   reducedMotion: boolean;
 }) {
   const eyeColor = expression.colors?.eyes ?? definition.colors.eyes;
-  const motion =
+  const eyeMotion =
     reducedMotion || expression.motion.eyes === "none"
       ? {}
       : expression.motion.eyes === "shake"
@@ -167,7 +167,7 @@ function Eyes({
 
   return (
     <motion.g
-      animate={motion}
+      animate={eyeMotion}
       transition={
         reducedMotion
           ? { duration: 0 }
