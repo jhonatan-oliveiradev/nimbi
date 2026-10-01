@@ -1,4 +1,5 @@
 import {
+  useEffect,
   useLayoutEffect,
   useMemo,
   useRef,
@@ -23,6 +24,15 @@ import { useNimbiDrag } from "../placement/use-nimbi-drag";
 import type { NimbiSnapshot } from "../telemetry/contract";
 import type { IslandMode } from "./island-machine";
 import "./island.css";
+
+export const CONTENT_ENTER_DELAY_MS = 140;
+export const CONTENT_EXIT_MS = 100;
+
+type ContentPhase = "hidden" | "visible" | "exiting";
+
+function modeHasContent(mode: IslandMode): boolean {
+  return mode === "compact" || mode === "attention" || mode === "expanded";
+}
 
 const DEFAULT_WORK_AREA: WorkArea = {
   x: 0,
@@ -183,6 +193,14 @@ export function DynamicIsland({
   const characterRef = useRef<HTMLDivElement | null>(null);
   const [pointer, setPointer] = useState<{ x: number; y: number }>();
   const [hovered, setHovered] = useState(false);
+  const [visualMode, setVisualMode] = useState<IslandMode>(mode);
+  const visualModeRef = useRef<IslandMode>(mode);
+  const [contentPhase, setContentPhase] = useState<ContentPhase>(() =>
+    modeHasContent(mode) ? "visible" : "hidden",
+  );
+  const transitionTimerRef = useRef<ReturnType<typeof setTimeout> | undefined>(
+    undefined,
+  );
   const [cloudBounds, setCloudBounds] = useState<{
     x: number;
     y: number;
@@ -195,6 +213,65 @@ export function DynamicIsland({
     width: 144,
     height: 38,
   });
+
+  useEffect(() => {
+    if (transitionTimerRef.current !== undefined) {
+      clearTimeout(transitionTimerRef.current);
+      transitionTimerRef.current = undefined;
+    }
+
+    const currentVisualMode = visualModeRef.current;
+    const currentHasContent = modeHasContent(currentVisualMode);
+    const nextHasContent = modeHasContent(mode);
+
+    const applyVisualMode = (next: IslandMode) => {
+      visualModeRef.current = next;
+      setVisualMode(next);
+    };
+
+    if (reducedMotion) {
+      applyVisualMode(mode);
+      setContentPhase(nextHasContent ? "visible" : "hidden");
+      return;
+    }
+
+    if (currentVisualMode === mode) {
+      setContentPhase(nextHasContent ? "visible" : "hidden");
+      return;
+    }
+
+    if (currentHasContent && !nextHasContent) {
+      setContentPhase("exiting");
+      transitionTimerRef.current = setTimeout(() => {
+        transitionTimerRef.current = undefined;
+        applyVisualMode(mode);
+        setContentPhase("hidden");
+      }, CONTENT_EXIT_MS);
+      return;
+    }
+
+    if (nextHasContent) {
+      applyVisualMode(mode);
+      setContentPhase("hidden");
+      transitionTimerRef.current = setTimeout(() => {
+        transitionTimerRef.current = undefined;
+        setContentPhase("visible");
+      }, CONTENT_ENTER_DELAY_MS);
+      return;
+    }
+
+    applyVisualMode(mode);
+    setContentPhase("hidden");
+  }, [mode, reducedMotion]);
+
+  useEffect(
+    () => () => {
+      if (transitionTimerRef.current !== undefined) {
+        clearTimeout(transitionTimerRef.current);
+      }
+    },
+    [],
+  );
 
   const drag = useNimbiDrag({
     placement,
@@ -253,15 +330,22 @@ export function DynamicIsland({
     observer.observe(island);
     observer.observe(character);
     return () => observer.disconnect();
-  }, [mode, orientation, activePlacement, onBoundsChange]);
+  }, [visualMode, orientation, activePlacement, onBoundsChange]);
 
   const status = statusText(snapshot);
   const meta = knownMeta(snapshot);
-  const showStatus = !drag.dragging && mode === "compact" && Boolean(status);
+  const contentMounted = contentPhase !== "hidden";
+  const showStatus =
+    contentMounted &&
+    !drag.dragging &&
+    visualMode === "compact" &&
+    Boolean(status);
   const showDetails =
-    !drag.dragging && (mode === "attention" || mode === "expanded");
+    contentMounted &&
+    !drag.dragging &&
+    (visualMode === "attention" || visualMode === "expanded");
   const muted = !snapshot.connected || snapshot.activity === "offline";
-  const expanded = mode === "attention" || mode === "expanded";
+  const expanded = visualMode === "attention" || visualMode === "expanded";
   const resolvedBehavior =
     behavior ?? baselineBehavior(snapshot.activity, mode === "expanded");
 
@@ -306,7 +390,9 @@ export function DynamicIsland({
     <motion.section
       ref={islandRef}
       data-testid="nimbi-island"
-      data-mode={mode}
+      data-mode={visualMode}
+      data-semantic-mode={mode}
+      data-content-phase={contentPhase}
       data-muted={String(muted)}
       data-orientation={orientation}
       data-edge={activePlacement.mode === "docked" ? activePlacement.edge : "floating"}
@@ -321,11 +407,11 @@ export function DynamicIsland({
         ...(nativeShell
           ? { top: 0, left: 0, right: "auto", bottom: "auto", translate: "0 0" }
           : placementStyle(activePlacement, direction, expanded)),
-        opacity: mode === "hidden" ? 0 : 1,
+        opacity: visualMode === "hidden" ? 0 : 1,
       }}
       animate={{
-        opacity: mode === "hidden" ? 0 : 1,
-        scale: mode === "hidden" ? 0.96 : drag.dragging ? 0.96 : 1,
+        opacity: visualMode === "hidden" ? 0 : 1,
+        scale: visualMode === "hidden" ? 0.96 : drag.dragging ? 0.96 : 1,
       }}
       transition={{ type: "spring", stiffness: 420, damping: 36 }}
       onClick={handleClick}
@@ -387,8 +473,13 @@ export function DynamicIsland({
 
       {showDetails ? (
         <div
-          data-testid={mode === "attention" ? "nimbi-attention" : "nimbi-details"}
-          data-fixture-only={mode === "attention" ? String(fixtureOnly) : undefined}
+          data-testid={
+            visualMode === "attention" ? "nimbi-attention" : "nimbi-details"
+          }
+          data-content-phase={contentPhase}
+          data-fixture-only={
+            visualMode === "attention" ? String(fixtureOnly) : undefined
+          }
           className="nimbi-island__details"
         >
           <strong className="nimbi-island__headline">
@@ -400,7 +491,7 @@ export function DynamicIsland({
             </span>
           ) : null}
 
-          {mode === "attention" && fixtureOnly ? (
+          {visualMode === "attention" && fixtureOnly ? (
             <div className="nimbi-island__fixture-actions" aria-label="Preview actions">
               <button type="button" disabled>
                 Deny
@@ -411,7 +502,7 @@ export function DynamicIsland({
             </div>
           ) : null}
 
-          {mode === "expanded" ? (
+          {visualMode === "expanded" ? (
             <div
               className="nimbi-island__presence-controls"
               onClick={(event) => event.stopPropagation()}
