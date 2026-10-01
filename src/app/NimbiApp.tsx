@@ -25,6 +25,7 @@ export interface NimbiAppProps {
   presence?: NimbiPresence;
   viewport?: ViewportRect;
   dragging?: boolean;
+  anchor?: { x: number; y: number };
   onCharacterPointerDown?: PointerEventHandler<HTMLDivElement>;
 }
 
@@ -59,6 +60,7 @@ export function NimbiApp({
   presence = DEFAULT_PRESENCE,
   viewport,
   dragging = false,
+  anchor,
   onCharacterPointerDown,
 }: NimbiAppProps) {
   const nativeRuntime = snapshot === undefined && isTauriRuntime();
@@ -166,6 +168,7 @@ export function NimbiApp({
           : { width: 1200, height: 800 })
       }
       dragging={dragging}
+      anchor={anchor}
       onCharacterPointerDown={onCharacterPointerDown}
     />
   );
