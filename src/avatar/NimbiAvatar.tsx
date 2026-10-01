@@ -54,9 +54,7 @@ class AvatarRuntimeBoundary extends Component<
   }
 
   componentDidCatch(error: Error, info: ErrorInfo) {
-    if (import.meta.env.DEV) {
-      console.error("Nimbi avatar runtime failed; using static fallback.", error, info);
-    }
+    console.error("Nimbi avatar runtime failed; using static fallback.", error, info);
   }
 
   render() {
@@ -88,7 +86,7 @@ function CloudeeRuntime({
         ? runtime.play(target.key)
         : runtime.setExpression(target.key);
 
-    if (!result.ok && import.meta.env.DEV) {
+    if (!result.ok) {
       console.error("Nimbi avatar rejected runtime target.", result.error);
     }
   }, [behavior, reducedMotion]);
