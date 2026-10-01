@@ -3,6 +3,8 @@ use std::sync::{Arc, Condvar, Mutex};
 use std::time::Duration;
 
 use serde::Serialize;
+
+use crate::preferences::{NimbiEdge, NimbiPlacement};
 use tauri::{AppHandle, Emitter, Manager, Monitor, PhysicalPosition, PhysicalSize, WebviewWindow};
 
 #[cfg(windows)]
@@ -18,6 +20,13 @@ pub const PANEL_W: f64 = 640.0;
 pub const PANEL_H: f64 = 300.0;
 pub const STRIP_W: f64 = 220.0;
 pub const STRIP_H: f64 = 6.0;
+pub const VERTICAL_PANEL_W: f64 = 300.0;
+pub const VERTICAL_PANEL_H: f64 = 640.0;
+pub const FLOATING_HORIZONTAL_W: f64 = 420.0;
+pub const FLOATING_HORIZONTAL_H: f64 = 300.0;
+pub const FLOATING_VERTICAL_W: f64 = 300.0;
+pub const FLOATING_VERTICAL_H: f64 = 420.0;
+pub const FLOATING_WAKE: f64 = 22.0;
 const HIT_MARGIN: f64 = 12.0;
 
 #[derive(Clone, Copy, Debug)]
@@ -27,6 +36,30 @@ pub struct MonitorGeometry {
     pub width: u32,
     pub height: u32,
     pub scale: f64,
+}
+
+#[derive(Clone, Copy, Debug)]
+pub struct WorkAreaGeometry {
+    pub x: i32,
+    pub y: i32,
+    pub width: u32,
+    pub height: u32,
+    pub scale: f64,
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize)]
+#[serde(rename_all = "lowercase")]
+pub enum ShellOrientation {
+    Horizontal,
+    Vertical,
+}
+
+#[derive(Clone, Copy, Debug)]
+pub struct ShellGeometry {
+    pub window: WindowGeometry,
+    pub anchor_x: f64,
+    pub anchor_y: f64,
+    pub orientation: ShellOrientation,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -140,6 +173,143 @@ pub fn centered_top_geometry(monitor: MonitorGeometry, collapsed: bool) -> Windo
         y: monitor.y,
         width,
         height,
+    }
+}
+
+fn placement_orientation(placement: &NimbiPlacement) -> ShellOrientation {
+    match placement {
+        NimbiPlacement::Docked { edge, .. } => match edge {
+            NimbiEdge::Left | NimbiEdge::Right => ShellOrientation::Vertical,
+            NimbiEdge::Top | NimbiEdge::Bottom => ShellOrientation::Horizontal,
+        },
+        NimbiPlacement::Floating { x, .. } => {
+            if *x <= 0.22 || *x >= 0.78 {
+                ShellOrientation::Vertical
+            } else {
+                ShellOrientation::Horizontal
+            }
+        }
+    }
+}
+
+fn normalized(value: f64) -> f64 {
+    if value.is_finite() {
+        value.clamp(0.0, 1.0)
+    } else {
+        0.5
+    }
+}
+
+fn clamp_f64(value: f64, min: f64, max: f64) -> f64 {
+    value.max(min).min(max)
+}
+
+pub fn adaptive_geometry(
+    work: WorkAreaGeometry,
+    placement: &NimbiPlacement,
+    collapsed: bool,
+) -> ShellGeometry {
+    let orientation = placement_orientation(placement);
+
+    let (logical_w, logical_h) = if collapsed {
+        match placement {
+            NimbiPlacement::Docked {
+                edge: NimbiEdge::Left | NimbiEdge::Right,
+                ..
+            } => (STRIP_H, STRIP_W),
+            NimbiPlacement::Docked { .. } => (STRIP_W, STRIP_H),
+            NimbiPlacement::Floating { .. } => (FLOATING_WAKE, FLOATING_WAKE),
+        }
+    } else {
+        match placement {
+            NimbiPlacement::Floating { .. } => match orientation {
+                ShellOrientation::Horizontal => {
+                    (FLOATING_HORIZONTAL_W, FLOATING_HORIZONTAL_H)
+                }
+                ShellOrientation::Vertical => (FLOATING_VERTICAL_W, FLOATING_VERTICAL_H),
+            },
+            NimbiPlacement::Docked { .. } => match orientation {
+                ShellOrientation::Horizontal => (PANEL_W, PANEL_H),
+                ShellOrientation::Vertical => (VERTICAL_PANEL_W, VERTICAL_PANEL_H),
+            },
+        }
+    };
+
+    let width = ((logical_w * work.scale).round().max(1.0) as u32).min(work.width.max(1));
+    let height = ((logical_h * work.scale).round().max(1.0) as u32).min(work.height.max(1));
+
+    let work_right = work.x as f64 + work.width as f64;
+    let work_bottom = work.y as f64 + work.height as f64;
+
+    let (target_x, target_y) = match placement {
+        NimbiPlacement::Docked {
+            edge,
+            offset,
+            ..
+        } => {
+            let offset = normalized(*offset);
+            match edge {
+                NimbiEdge::Top => (
+                    work.x as f64 + work.width as f64 * offset,
+                    work.y as f64,
+                ),
+                NimbiEdge::Right => (
+                    work_right,
+                    work.y as f64 + work.height as f64 * offset,
+                ),
+                NimbiEdge::Bottom => (
+                    work.x as f64 + work.width as f64 * offset,
+                    work_bottom,
+                ),
+                NimbiEdge::Left => (
+                    work.x as f64,
+                    work.y as f64 + work.height as f64 * offset,
+                ),
+            }
+        }
+        NimbiPlacement::Floating { x, y, .. } => (
+            work.x as f64 + work.width as f64 * normalized(*x),
+            work.y as f64 + work.height as f64 * normalized(*y),
+        ),
+    };
+
+    let max_x = work.x as f64 + (work.width.saturating_sub(width)) as f64;
+    let max_y = work.y as f64 + (work.height.saturating_sub(height)) as f64;
+
+    let x = match placement {
+        NimbiPlacement::Docked {
+            edge: NimbiEdge::Left,
+            ..
+        } => work.x as f64,
+        NimbiPlacement::Docked {
+            edge: NimbiEdge::Right,
+            ..
+        } => max_x,
+        _ => clamp_f64(target_x - width as f64 / 2.0, work.x as f64, max_x),
+    };
+
+    let y = match placement {
+        NimbiPlacement::Docked {
+            edge: NimbiEdge::Top,
+            ..
+        } => work.y as f64,
+        NimbiPlacement::Docked {
+            edge: NimbiEdge::Bottom,
+            ..
+        } => max_y,
+        _ => clamp_f64(target_y - height as f64 / 2.0, work.y as f64, max_y),
+    };
+
+    ShellGeometry {
+        window: WindowGeometry {
+            x: x.round() as i32,
+            y: y.round() as i32,
+            width,
+            height,
+        },
+        anchor_x: clamp_f64(target_x - x, 0.0, width as f64),
+        anchor_y: clamp_f64(target_y - y, 0.0, height as f64),
+        orientation,
     }
 }
 
