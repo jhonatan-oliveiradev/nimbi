@@ -9,6 +9,7 @@ import {
   type NimbiPlacement,
   type WorkArea,
 } from "../placement/placement";
+import { useNimbiPreferences } from "../preferences/use-nimbi-preferences";
 import type { NimbiSnapshot } from "../telemetry/contract";
 import { NIMBI_FIXTURES } from "../telemetry/fixtures";
 import { useNimbiSnapshot } from "../telemetry/use-nimbi-snapshot";
@@ -23,6 +24,8 @@ export interface NimbiAppProps {
   workArea?: WorkArea;
   passiveOpacity?: number;
   onPlacementChange?: (placement: NimbiPlacement) => void;
+  onPassiveOpacityChange?: (value: number) => void;
+  onResetPlacement?: () => void;
 }
 
 function defaultMode(snapshot: NimbiSnapshot): IslandMode {
@@ -54,11 +57,18 @@ export function NimbiApp({
   onToggle,
   placement,
   workArea,
-  passiveOpacity = 0.72,
+  passiveOpacity,
   onPlacementChange,
+  onPassiveOpacityChange,
+  onResetPlacement,
 }: NimbiAppProps) {
   const nativeRuntime = snapshot === undefined && isTauriRuntime();
   const liveSnapshot = useNimbiSnapshot(nativeRuntime);
+  const {
+    preferences,
+    savePassiveOpacity,
+    resetPlacement,
+  } = useNimbiPreferences(nativeRuntime);
   const currentSnapshot =
     snapshot ?? (nativeRuntime ? liveSnapshot : NIMBI_FIXTURES.idle);
   const prefersReducedMotion = useReducedMotion();
@@ -74,7 +84,14 @@ export function NimbiApp({
   const [desktopPointer, setDesktopPointer] = useState<{ x: number; y: number }>();
   const [localPlacement, setLocalPlacement] =
     useState<NimbiPlacement>(DEFAULT_PLACEMENT);
-  const currentPlacement = placement ?? localPlacement;
+  const [localPassiveOpacity, setLocalPassiveOpacity] = useState(0.72);
+  const currentPlacement =
+    placement ?? (nativeRuntime ? preferences.placement : localPlacement);
+  const currentPassiveOpacity =
+    passiveOpacity ??
+    (nativeRuntime
+      ? preferences.presence.passiveOpacity
+      : localPassiveOpacity);
   const currentWorkArea: WorkArea =
     workArea ??
     {
@@ -147,8 +164,29 @@ export function NimbiApp({
   );
 
   const handlePlacementCommit = (next: NimbiPlacement) => {
+    if (nativeRuntime) return;
     if (placement === undefined) setLocalPlacement(next);
     onPlacementChange?.(next);
+  };
+
+  const handlePassiveOpacityChange = (value: number) => {
+    onPassiveOpacityChange?.(value);
+    if (onPassiveOpacityChange) return;
+    if (nativeRuntime) {
+      void savePassiveOpacity(value);
+      return;
+    }
+    setLocalPassiveOpacity(value);
+  };
+
+  const handleResetPlacement = () => {
+    onResetPlacement?.();
+    if (onResetPlacement) return;
+    if (nativeRuntime) {
+      void resetPlacement();
+      return;
+    }
+    setLocalPlacement(DEFAULT_PLACEMENT);
   };
 
   const handleToggle = () => {
@@ -172,8 +210,23 @@ export function NimbiApp({
       pointer={desktopPointer}
       placement={currentPlacement}
       workArea={currentWorkArea}
-      passiveOpacity={passiveOpacity}
+      passiveOpacity={currentPassiveOpacity}
       onPlacementCommit={handlePlacementCommit}
+      onPassiveOpacityChange={handlePassiveOpacityChange}
+      onResetPlacement={handleResetPlacement}
+      nativeShell={nativeRuntime}
+      onNativeDragStart={
+        nativeRuntime ? () => void invoke("begin_drag") : undefined
+      }
+      onNativeDragMove={
+        nativeRuntime ? () => void invoke("move_drag") : undefined
+      }
+      onNativeDragEnd={
+        nativeRuntime ? () => void invoke("commit_drag") : undefined
+      }
+      onNativeDragCancel={
+        nativeRuntime ? () => void invoke("cancel_drag") : undefined
+      }
     />
   );
 }
