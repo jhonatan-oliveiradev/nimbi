@@ -169,7 +169,8 @@ export function DynamicIsland({
     onDragEnd: onNativeDragEnd,
     onDragCancel: onNativeDragCancel,
   });
-  const activePlacement = drag.dragging ? drag.previewPlacement : placement;
+  const activePlacement =
+    nativeShell ? placement : drag.dragging ? drag.previewPlacement : placement;
   const orientation = orientationForPlacement(activePlacement);
   const direction = useMemo(
     () => expansionDirection(activePlacement, workArea, islandBounds),
