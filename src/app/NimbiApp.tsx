@@ -2,6 +2,7 @@ import { invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
 import { useReducedMotion } from "motion/react";
 import { useCallback, useEffect, useRef, useState } from "react";
+import { useNimbiBehavior } from "../behavior/use-nimbi-behavior";
 import { DynamicIsland } from "../island/DynamicIsland";
 import { IslandMachine, type IslandMode } from "../island/island-machine";
 import {
@@ -116,6 +117,11 @@ export function NimbiApp({
   }, [currentSnapshot.activity, machine]);
 
   const renderedMode = mode ?? machineMode;
+  const behaviorLifecycle = useNimbiBehavior({
+    activity: currentSnapshot.activity,
+    islandOpen: renderedMode === "expanded",
+    reducedMotion: motionReduced,
+  });
 
   useEffect(() => {
     if (!nativeRuntime) return;
@@ -204,6 +210,8 @@ export function NimbiApp({
       fixtureOnly={fixtureOnly}
       reducedMotion={motionReduced}
       onToggle={handleToggle}
+      behavior={behaviorLifecycle.behavior}
+      behaviorEvents={behaviorLifecycle}
       onBoundsChange={reportBounds}
       onPointerEnter={mode === undefined ? () => machine.pointerEnter() : undefined}
       onPointerLeave={mode === undefined ? () => machine.pointerLeave() : undefined}
