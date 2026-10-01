@@ -395,18 +395,6 @@ fn target_monitor(app: &AppHandle, placement: &NimbiPlacement) -> Option<Monitor
         .or_else(|| monitors.into_iter().next())
 }
 
-fn monitor_geometry(monitor: &Monitor) -> MonitorGeometry {
-    let pos = monitor.position();
-    let size = monitor.size();
-    MonitorGeometry {
-        x: pos.x,
-        y: pos.y,
-        width: size.width,
-        height: size.height,
-        scale: monitor.scale_factor(),
-    }
-}
-
 fn work_area_geometry(monitor: &Monitor) -> WorkAreaGeometry {
     let work = monitor.work_area();
     WorkAreaGeometry {
