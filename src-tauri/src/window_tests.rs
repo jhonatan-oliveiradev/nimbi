@@ -1,8 +1,9 @@
 use crate::preferences::{DockEdge, NimbiPlacement};
 use crate::window::{
     centered_top_geometry, evaluate_pointer, hit_test, monitor_for_point,
-    placement_for_point, placement_window_geometry, resolve_monitor, IslandRect, LogicalSize,
-    MonitorGeometry, MonitorWorkArea, Point, PANEL_H, PANEL_W, STRIP_H, STRIP_W,
+    monitor_topology_key, placement_for_point, placement_window_geometry, resolve_monitor,
+    IslandRect, LogicalSize, MonitorGeometry, MonitorWorkArea, Point, PANEL_H, PANEL_W,
+    STRIP_H, STRIP_W,
 };
 
 #[test]
@@ -336,4 +337,40 @@ fn placement_for_point_snaps_to_nearest_edge_and_preserves_monitor_identity() {
             y: 0.5,
         }
     );
+}
+
+#[test]
+fn monitor_topology_key_is_stable_but_changes_for_dpi_or_work_area() {
+    let monitors = vec![
+        MonitorWorkArea {
+            id: "b".into(),
+            x: 1920,
+            y: 0,
+            width: 1600,
+            height: 860,
+            scale: 1.25,
+            primary: false,
+        },
+        MonitorWorkArea {
+            id: "a".into(),
+            x: 0,
+            y: 0,
+            width: 1920,
+            height: 1040,
+            scale: 1.0,
+            primary: true,
+        },
+    ];
+
+    let key = monitor_topology_key(&monitors);
+    let reversed = monitor_topology_key(&monitors.iter().cloned().rev().collect::<Vec<_>>());
+    assert_eq!(key, reversed);
+
+    let mut changed = monitors.clone();
+    changed[0].scale = 1.5;
+    assert_ne!(key, monitor_topology_key(&changed));
+
+    changed[0].scale = 1.25;
+    changed[0].height = 820;
+    assert_ne!(key, monitor_topology_key(&changed));
 }
