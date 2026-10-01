@@ -48,12 +48,37 @@ RunOptic should be available on its normal loopback endpoint:
 http://127.0.0.1:48666/v1/telemetry/state
 ```
 
-Start Nimbi:
+Start Nimbi with the normal Tauri CLI:
 
 ```powershell
 npm install
 npm run tauri:dev
 ```
+
+### Windows Application Control fallback
+
+On machines where Windows Application Control blocks the native binding used by `@tauri-apps/cli` (`cli.win32-x64-msvc.node`), reinstalling npm dependencies does not address the actual policy block.
+
+Tauri can be run without the Node Tauri CLI. Start the frontend dev server in one terminal:
+
+```powershell
+npm run dev
+```
+
+Then start the Rust desktop process directly in a second terminal:
+
+```powershell
+npm run desktop:rust
+```
+
+This follows Tauri's supported direct-Cargo debugging path and avoids loading `@tauri-apps/cli` entirely. The npm script expands to:
+
+```powershell
+cargo run --manifest-path src-tauri/Cargo.toml --no-default-features
+```
+
+If Windows Application Control then blocks the locally built `nimbi.exe` itself, stop there: that is a separate code-signing/application-control issue. Do not disable Smart App Control or Device Guard just to run Nimbi; continue visual work through the browser preview and use CI native-build results until we add a trusted signing path.
+
 
 For explicit local testing only, the RunOptic base URL can be overridden with `NIMBI_RUNOPTIC_BASE_URL`. Plain HTTP overrides are accepted only for loopback hosts.
 
