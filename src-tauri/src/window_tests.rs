@@ -1,8 +1,8 @@
 use crate::preferences::{NimbiEdge, NimbiPlacement};
 use crate::window::{
-    adaptive_geometry, centered_top_geometry, evaluate_pointer, hit_test, IslandRect,
-    MonitorGeometry, Point, ShellOrientation, WorkAreaGeometry, PANEL_H, PANEL_W, STRIP_H,
-    STRIP_W,
+    adaptive_geometry, centered_top_geometry, evaluate_pointer, hit_test,
+    placement_from_physical_point, IslandRect, MonitorGeometry, Point, ShellOrientation,
+    WorkAreaGeometry, PANEL_H, PANEL_W, STRIP_H, STRIP_W,
 };
 
 #[test]
@@ -201,4 +201,57 @@ fn collapsed_left_dock_uses_vertical_wake_strip() {
     assert_eq!(layout.window.width, STRIP_H as u32);
     assert_eq!(layout.window.height, STRIP_W as u32);
     assert_eq!(layout.window.x, 0);
+}
+
+
+#[test]
+fn physical_drop_near_right_edge_resolves_to_docked_placement() {
+    let work = WorkAreaGeometry {
+        x: 100,
+        y: 50,
+        width: 1600,
+        height: 900,
+        scale: 1.25,
+    };
+    let placement = placement_from_physical_point(
+        Point { x: 1685.0, y: 500.0 },
+        work,
+        "DISPLAY-A".into(),
+        64.0,
+    );
+
+    assert_eq!(
+        placement,
+        NimbiPlacement::Docked {
+            edge: NimbiEdge::Right,
+            offset: 0.5,
+            monitor_id: Some("DISPLAY-A".into()),
+        }
+    );
+}
+
+#[test]
+fn physical_drop_away_from_edges_resolves_to_normalized_floating_placement() {
+    let work = WorkAreaGeometry {
+        x: -1600,
+        y: 0,
+        width: 1600,
+        height: 900,
+        scale: 1.0,
+    };
+    let placement = placement_from_physical_point(
+        Point { x: -800.0, y: 450.0 },
+        work,
+        "DISPLAY-B".into(),
+        64.0,
+    );
+
+    assert_eq!(
+        placement,
+        NimbiPlacement::Floating {
+            x: 0.5,
+            y: 0.5,
+            monitor_id: Some("DISPLAY-B".into()),
+        }
+    );
 }
