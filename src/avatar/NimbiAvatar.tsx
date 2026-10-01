@@ -73,7 +73,7 @@ function CloudeeRuntime({
   reducedMotion,
 }: Pick<NimbiAvatarProps, "behavior" | "reducedMotion">) {
   const controller = useRef<AvatarController | null>(null);
-  const previousTarget = useRef<AvatarTarget>();
+  const previousTarget = useRef<AvatarTarget | undefined>(undefined);
 
   useEffect(() => {
     const runtime = controller.current;
@@ -96,7 +96,7 @@ function CloudeeRuntime({
   return (
     <Avatar
       ref={controller}
-      definition={NIMBI_CLOUDEE_DEFINITION as RuntimeDefinition}
+      definition={NIMBI_CLOUDEE_DEFINITION as unknown as RuntimeDefinition}
       defaultExpression="neutral"
       size="100%"
       ariaLabel={`Nimbi: ${behavior}`}
