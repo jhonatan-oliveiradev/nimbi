@@ -1,6 +1,8 @@
+use crate::preferences::{DockEdge, NimbiPlacement};
 use crate::window::{
-    centered_top_geometry, evaluate_pointer, hit_test, IslandRect, MonitorGeometry, Point, PANEL_H,
-    PANEL_W, STRIP_H, STRIP_W,
+    centered_top_geometry, evaluate_pointer, hit_test, monitor_for_point,
+    placement_window_geometry, resolve_monitor, IslandRect, LogicalSize, MonitorGeometry,
+    MonitorWorkArea, Point, PANEL_H, PANEL_W, STRIP_H, STRIP_W,
 };
 
 #[test]
@@ -91,4 +93,199 @@ fn stationary_pointer_rechecks_hit_state_after_island_geometry_changes() {
     assert!(before.should_ignore);
     assert!(!after.moved);
     assert!(!after.should_ignore);
+}
+
+
+#[test]
+fn docked_geometry_uses_work_area_and_monitor_scale() {
+    let monitor = MonitorWorkArea {
+        id: "m1".into(),
+        x: 100,
+        y: 50,
+        width: 1800,
+        height: 960,
+        scale: 1.5,
+        primary: true,
+    };
+    let size = LogicalSize {
+        width: 300.0,
+        height: 80.0,
+    };
+
+    let top = placement_window_geometry(
+        &monitor,
+        &NimbiPlacement::Docked {
+            monitor_id: "m1".into(),
+            edge: DockEdge::Top,
+            offset: 0.5,
+        },
+        size,
+        false,
+    );
+    assert_eq!(top.width, 450);
+    assert_eq!(top.height, 120);
+    assert_eq!(top.x, 100 + (1800 - 450) / 2);
+    assert_eq!(top.y, 50);
+
+    let bottom = placement_window_geometry(
+        &monitor,
+        &NimbiPlacement::Docked {
+            monitor_id: "m1".into(),
+            edge: DockEdge::Bottom,
+            offset: 0.5,
+        },
+        size,
+        false,
+    );
+    assert_eq!(bottom.y, 50 + 960 - 120);
+
+    let left = placement_window_geometry(
+        &monitor,
+        &NimbiPlacement::Docked {
+            monitor_id: "m1".into(),
+            edge: DockEdge::Left,
+            offset: 0.25,
+        },
+        size,
+        false,
+    );
+    assert_eq!(left.x, 100);
+    assert_eq!(left.y, 50 + (960.0 * 0.25).round() as i32 - 60);
+
+    let right = placement_window_geometry(
+        &monitor,
+        &NimbiPlacement::Docked {
+            monitor_id: "m1".into(),
+            edge: DockEdge::Right,
+            offset: 0.75,
+        },
+        size,
+        false,
+    );
+    assert_eq!(right.x, 100 + 1800 - 450);
+}
+
+#[test]
+fn floating_geometry_restores_normalized_center_and_clamps_onscreen() {
+    let monitor = MonitorWorkArea {
+        id: "m1".into(),
+        x: -1600,
+        y: 0,
+        width: 1600,
+        height: 860,
+        scale: 1.0,
+        primary: false,
+    };
+    let geometry = placement_window_geometry(
+        &monitor,
+        &NimbiPlacement::Floating {
+            monitor_id: "m1".into(),
+            x: 1.4,
+            y: -0.3,
+        },
+        LogicalSize {
+            width: 240.0,
+            height: 120.0,
+        },
+        false,
+    );
+
+    assert_eq!(geometry.x, -240);
+    assert_eq!(geometry.y, 0);
+    assert_eq!(geometry.width, 240);
+    assert_eq!(geometry.height, 120);
+}
+
+#[test]
+fn collapsed_vertical_dock_rotates_the_wake_strip_geometry() {
+    let monitor = MonitorWorkArea {
+        id: "m1".into(),
+        x: 0,
+        y: 0,
+        width: 1920,
+        height: 1040,
+        scale: 1.0,
+        primary: true,
+    };
+    let geometry = placement_window_geometry(
+        &monitor,
+        &NimbiPlacement::Docked {
+            monitor_id: "m1".into(),
+            edge: DockEdge::Right,
+            offset: 0.5,
+        },
+        LogicalSize {
+            width: 190.0,
+            height: 268.0,
+        },
+        true,
+    );
+
+    assert_eq!(geometry.width, STRIP_H as u32);
+    assert_eq!(geometry.height, STRIP_W as u32);
+    assert_eq!(geometry.x, 1920 - STRIP_H as i32);
+}
+
+#[test]
+fn saved_missing_monitor_falls_back_to_primary() {
+    let monitors = vec![
+        MonitorWorkArea {
+            id: "secondary".into(),
+            x: -1920,
+            y: 0,
+            width: 1920,
+            height: 1040,
+            scale: 1.0,
+            primary: false,
+        },
+        MonitorWorkArea {
+            id: "primary".into(),
+            x: 0,
+            y: 0,
+            width: 1920,
+            height: 1040,
+            scale: 1.0,
+            primary: true,
+        },
+    ];
+
+    let resolved = resolve_monitor(&monitors, "missing").expect("monitor");
+    assert_eq!(resolved.id, "primary");
+}
+
+#[test]
+fn pointer_crossing_monitors_selects_the_work_area_under_it() {
+    let monitors = vec![
+        MonitorWorkArea {
+            id: "left".into(),
+            x: -1280,
+            y: 0,
+            width: 1280,
+            height: 720,
+            scale: 1.0,
+            primary: false,
+        },
+        MonitorWorkArea {
+            id: "right".into(),
+            x: 0,
+            y: 0,
+            width: 1920,
+            height: 1040,
+            scale: 1.25,
+            primary: true,
+        },
+    ];
+
+    assert_eq!(
+        monitor_for_point(&monitors, Point { x: -400.0, y: 300.0 })
+            .expect("left monitor")
+            .id,
+        "left"
+    );
+    assert_eq!(
+        monitor_for_point(&monitors, Point { x: 700.0, y: 300.0 })
+            .expect("right monitor")
+            .id,
+        "right"
+    );
 }
