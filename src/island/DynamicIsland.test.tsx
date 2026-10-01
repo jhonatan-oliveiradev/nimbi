@@ -245,6 +245,29 @@ describe("DynamicIsland", () => {
   });
 
 
+  it("keeps floating expanded geometry clamped inside the preview work area", () => {
+    const placement: NimbiPlacement = {
+      mode: "floating",
+      monitorId: "preview",
+      x: 0.06,
+      y: 0.5,
+    };
+    const workArea: WorkArea = { x: 0, y: 0, width: 1000, height: 700 };
+
+    render(
+      <DynamicIsland
+        snapshot={NIMBI_FIXTURES.idle}
+        mode="expanded"
+        placement={placement}
+        workArea={workArea}
+      />,
+    );
+
+    const island = screen.getByTestId("nimbi-island") as HTMLElement;
+    expect(island.style.left).toContain("clamp(");
+    expect(island.style.top).toContain("clamp(");
+  });
+
   it("shows compact Presence controls in expanded mode", () => {
     const opacityChange = vi.fn();
     const resetPlacement = vi.fn();
