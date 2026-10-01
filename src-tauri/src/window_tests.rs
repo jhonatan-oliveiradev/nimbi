@@ -1,9 +1,9 @@
 use crate::preferences::{DockEdge, NimbiPlacement};
 use crate::window::{
     centered_top_geometry, evaluate_pointer, hit_test, monitor_for_point,
-    monitor_topology_key, placement_for_point, placement_window_geometry, resolve_monitor,
-    IslandRect, LogicalSize, MonitorGeometry, MonitorWorkArea, Point, PANEL_H, PANEL_W,
-    STRIP_H, STRIP_W,
+    drag_surface_physical_size, monitor_topology_key, placement_for_point,
+    placement_window_geometry, resolve_monitor, IslandRect, LogicalSize, MonitorGeometry,
+    MonitorWorkArea, Point, PANEL_H, PANEL_W, STRIP_H, STRIP_W,
 };
 
 #[test]
@@ -373,4 +373,12 @@ fn monitor_topology_key_is_stable_but_changes_for_dpi_or_work_area() {
     changed[0].scale = 1.25;
     changed[0].height = 820;
     assert_ne!(key, monitor_topology_key(&changed));
+}
+
+
+#[test]
+fn drag_surface_size_matches_the_compact_cloud_across_dpi_scales() {
+    assert_eq!(drag_surface_physical_size(1.0), (76, 48));
+    assert_eq!(drag_surface_physical_size(1.25), (95, 60));
+    assert_eq!(drag_surface_physical_size(1.5), (114, 72));
 }
