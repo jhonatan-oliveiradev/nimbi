@@ -134,8 +134,15 @@ export function DynamicIsland({
             aria-hidden="true"
             data-activity={snapshot.activity}
           />
-          <span data-testid="nimbi-status" className="nimbi-island__status">
-            {status}
+          <span className="nimbi-island__compact-text">
+            <span data-testid="nimbi-status" className="nimbi-island__status">
+              {status}
+            </span>
+            {meta ? (
+              <span data-testid="nimbi-meta" className="nimbi-island__compact-meta">
+                {meta}
+              </span>
+            ) : null}
           </span>
         </div>
       ) : null}
