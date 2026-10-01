@@ -23,4 +23,19 @@ describe("PreviewApp", () => {
       "0.38",
     );
   });
+
+  it("offers deterministic placement fixtures for visual review", () => {
+    render(<PreviewApp />);
+
+    fireEvent.click(screen.getByRole("button", { name: "Dock right" }));
+    expect(screen.getByText(/right · 50% · 72%/i)).toBeInTheDocument();
+    expect(screen.getByTestId("nimbi-island")).toHaveAttribute("data-edge", "right");
+
+    fireEvent.click(screen.getByRole("button", { name: "Float bottom right" }));
+    expect(screen.getByText(/floating · 92% \/ 90% · 72%/i)).toBeInTheDocument();
+    expect(screen.getByTestId("nimbi-island")).toHaveAttribute(
+      "data-edge",
+      "floating",
+    );
+  });
 });
