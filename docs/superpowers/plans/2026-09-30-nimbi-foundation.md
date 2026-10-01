@@ -99,71 +99,52 @@ git commit -m "chore: scaffold Nimbi frontend"
 
 ---
 
-### Task 2: Define telemetry contracts and deterministic state derivation
+### Task 2: Define the frontend Nimbi contract and fixture snapshots
 
 **Files:**
 - Create: `src/telemetry/contract.ts`
-- Create: `src/telemetry/derive-nimbi-state.ts`
-- Create: `src/telemetry/derive-nimbi-state.test.ts`
 - Create: `src/telemetry/fixtures.ts`
+- Create: `src/telemetry/fixtures.test.ts`
 
 **Interfaces:**
-- Consumes: RunOptic field names from `runoptic.telemetry.v1`.
+- Consumes: no raw RunOptic types; the frontend only knows Nimbi product state.
 - Produces:
   - `type NimbiActivity = "offline" | "idle" | "thinking" | "working" | "needs-input" | "complete" | "error"`
-  - `interface NimbiSnapshot`
-  - `interface RunOpticTelemetrySnapshot`
-  - `deriveNimbiSnapshot(current: RunOpticTelemetrySnapshot | null, previous?: NimbiSnapshot): NimbiSnapshot`
+  - `interface NimbiSnapshot { connected; protocol?; activity; sessionId?; agent?; provider?; model?; project?; environment?; summary?; observedAt? }`
+  - `const NIMBI_FIXTURES: Record<NimbiActivity, NimbiSnapshot>`
 
-- [ ] **Step 1: Write state-derivation tests**
+- [ ] **Step 1: Write fixture-contract tests**
 
-Cover these exact cases in `derive-nimbi-state.test.ts`:
-
-1. `null` input → `connected=false`, `activity="offline"`.
-2. wrong protocol → `connected=false`, `activity="offline"`.
-3. valid snapshot with no sessions → `connected=true`, `activity="idle"`.
-4. a `waiting` session with non-empty `attention_reason` → `needs-input`, and only known provider/model/project fields are copied.
-5. any activity observation with non-empty `error` newer than competing observations → `error`.
-6. a `working` session whose latest activity is `query_started` → `thinking`.
-7. a `working` session whose latest activity is `tool_completed` or has no newer `query_started` → `working`.
-8. previous snapshot is `working` and the same session is now `done` → transient `complete`.
-9. two sessions compete: waiting-with-attention wins over error, error wins over working/thinking, and the selected labels come from the winning session only.
-10. absent provider/model/project stay `undefined`.
+Cover:
+1. all seven `NimbiActivity` values have one fixture;
+2. offline fixture has `connected=false` and no stale agent/provider/model/project labels;
+3. idle fixture is connected but does not invent provider/model/project;
+4. working fixture includes a plausible agent and only explicitly supplied optional labels;
+5. needs-input fixture contains presentation-only summary text and is not marked as a live actionable request.
 
 - [ ] **Step 2: Run the tests to verify failure**
 
-Run: `npm run test:run -- src/telemetry/derive-nimbi-state.test.ts`  
-Expected: FAIL because the contract/deriver do not exist.
+Run: `npm run test:run -- src/telemetry/fixtures.test.ts`  
+Expected: FAIL because the contract/fixtures do not exist.
 
-- [ ] **Step 3: Implement the contracts**
+- [ ] **Step 3: Implement the frontend contract**
 
-In `contract.ts`, model only the RunOptic fields Nimbi actually reads:
-- snapshot: `protocol`, `sessions`, `activity`, `updated_at_ms`;
-- session: `session_id`, `agent`, optional provider/project/model, `state`, optional `state_since_ms`, optional `attention_reason`, provenance observed time;
-- activity: `id`, `kind`, `session_id`, agent/environment, optional project/provider/model/error, provenance observed time.
+Keep `contract.ts` provider-agnostic. It must not define `RunOpticTelemetrySnapshot`, sessions, activity observations, usage, or performance. Raw RunOptic parsing and state derivation live exclusively in Rust (Task 6).
 
-Do not copy usage/performance shapes into the frontend contract.
+- [ ] **Step 4: Implement `NIMBI_FIXTURES`**
 
-- [ ] **Step 4: Implement `deriveNimbiSnapshot`**
+Create one fixture per semantic activity. Keep provider/model/project absent unless the fixture specifically demonstrates known attribution.
 
-Use explicit priority:
+- [ ] **Step 5: Run fixture tests**
 
-```text
-needs-input > error > working/thinking > complete transition > idle
-```
-
-For competing records at the same priority, select the newest `provenance.observed_at_ms`, then stable-sort by session ID for deterministic ties.
-
-- [ ] **Step 5: Run derivation tests**
-
-Run: `npm run test:run -- src/telemetry/derive-nimbi-state.test.ts`  
+Run: `npm run test:run -- src/telemetry/fixtures.test.ts`  
 Expected: PASS.
 
 - [ ] **Step 6: Commit**
 
 ```bash
 git add src/telemetry
-git commit -m "feat: derive Nimbi state from RunOptic telemetry"
+git commit -m "feat: define Nimbi frontend state contract"
 ```
 
 ---
@@ -386,6 +367,7 @@ Cover:
 - working + latest query-started → thinking;
 - working + tool-completed → working;
 - previous working + same session now done → complete;
+- multiple sessions compete deterministically: waiting-with-attention > latest explicit error > working/thinking > idle, with ties broken by newest provenance timestamp then stable session ID;
 - unknown provider/model/project serialize as omitted/null according to the frontend contract, never placeholder strings.
 
 Use an injectable test base URL or local test server; do not hit a real RunOptic process in unit tests.
