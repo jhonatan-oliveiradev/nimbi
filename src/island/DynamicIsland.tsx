@@ -7,9 +7,10 @@ import {
   type PointerEvent as ReactPointerEvent,
 } from "react";
 import { motion } from "motion/react";
+import { NimbiAvatar } from "../avatar/NimbiAvatar";
 import type { NimbiBehavior } from "../behavior/nimbi-behavior";
+import { baselineBehavior } from "../behavior/nimbi-behavior-controller";
 import type { NimbiBehaviorEvents } from "../behavior/use-nimbi-behavior";
-import { NimbiCloud } from "../nimbi/NimbiCloud";
 import {
   DEFAULT_PLACEMENT,
   expansionDirection,
@@ -200,10 +201,19 @@ export function DynamicIsland({
     workArea,
     onPreview: onPlacementPreview,
     onCommit: onPlacementCommit,
-    onDragStart: onNativeDragStart,
+    onDragStart: () => {
+      behaviorEvents?.onDragging();
+      onNativeDragStart?.();
+    },
     onDragMove: onNativeDragMove,
-    onDragEnd: onNativeDragEnd,
-    onDragCancel: onNativeDragCancel,
+    onDragEnd: () => {
+      onNativeDragEnd?.();
+      behaviorEvents?.onRelease();
+    },
+    onDragCancel: () => {
+      onNativeDragCancel?.();
+      behaviorEvents?.onDragCancel();
+    },
   });
   const activePlacement =
     nativeShell ? placement : drag.dragging ? drag.previewPlacement : placement;
@@ -252,6 +262,8 @@ export function DynamicIsland({
     !drag.dragging && (mode === "attention" || mode === "expanded");
   const muted = !snapshot.connected || snapshot.activity === "offline";
   const expanded = mode === "attention" || mode === "expanded";
+  const resolvedBehavior =
+    behavior ?? baselineBehavior(snapshot.activity, mode === "expanded");
 
   const pointFromEvent = (event: ReactPointerEvent) => ({
     x: event.clientX + workArea.x,
@@ -261,6 +273,7 @@ export function DynamicIsland({
   const handleCharacterPointerDown = (event: ReactPointerEvent<HTMLDivElement>) => {
     event.stopPropagation();
     event.currentTarget.setPointerCapture?.(event.pointerId);
+    behaviorEvents?.onGrab();
     drag.begin(pointFromEvent(event));
   };
 
@@ -269,10 +282,18 @@ export function DynamicIsland({
   };
 
   const handleCharacterPointerUp = (event: ReactPointerEvent<HTMLDivElement>) => {
+    const wasDragging = drag.dragging;
     drag.end(pointFromEvent(event));
+    if (!wasDragging) behaviorEvents?.onDragCancel();
     if (event.currentTarget.hasPointerCapture?.(event.pointerId)) {
       event.currentTarget.releasePointerCapture?.(event.pointerId);
     }
+  };
+
+  const handleCharacterPointerCancel = () => {
+    const wasDragging = drag.dragging;
+    drag.cancel();
+    if (!wasDragging) behaviorEvents?.onDragCancel();
   };
 
   const handleClick = () => {
@@ -291,7 +312,8 @@ export function DynamicIsland({
       data-edge={activePlacement.mode === "docked" ? activePlacement.edge : "floating"}
       data-expansion={direction}
       data-dragging={String(drag.dragging)}
-      data-behavior={behavior}
+      data-behavior={resolvedBehavior}
+      data-reduced-motion={String(reducedMotion)}
       className="nimbi-island"
       aria-label="Nimbi"
       initial={false}
@@ -330,11 +352,11 @@ export function DynamicIsland({
         onPointerDown={handleCharacterPointerDown}
         onPointerMove={handleCharacterPointerMove}
         onPointerUp={handleCharacterPointerUp}
-        onPointerCancel={() => drag.cancel()}
+        onPointerCancel={handleCharacterPointerCancel}
       >
-        <NimbiCloud
+        <NimbiAvatar
+          behavior={resolvedBehavior}
           activity={snapshot.activity}
-          hidden={mode === "hidden"}
           reducedMotion={reducedMotion}
           pointer={externalPointer ?? pointer}
           bounds={cloudBounds}
