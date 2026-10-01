@@ -494,6 +494,42 @@
   translate: -50% 0;
 }
 
+.nimbi-island[data-edge="floating"]:not([data-mode="idle"]):not([data-dragging="true"])[data-expansion="left"][data-float-y="start"],
+.nimbi-island[data-edge="floating"]:not([data-mode="idle"]):not([data-dragging="true"])[data-expansion="right"][data-float-y="start"] {
+  translate: var(--nimbi-float-x-translate, -50%) 0;
+}
+
+.nimbi-island[data-edge="floating"]:not([data-mode="idle"]):not([data-dragging="true"])[data-expansion="left"][data-float-y="end"],
+.nimbi-island[data-edge="floating"]:not([data-mode="idle"]):not([data-dragging="true"])[data-expansion="right"][data-float-y="end"] {
+  translate: var(--nimbi-float-x-translate, -50%) -100%;
+}
+
+.nimbi-island[data-edge="floating"][data-expansion="left"] {
+  --nimbi-float-x-translate: -100%;
+}
+
+.nimbi-island[data-edge="floating"][data-expansion="right"] {
+  --nimbi-float-x-translate: 0;
+}
+
+.nimbi-island[data-edge="floating"]:not([data-mode="idle"]):not([data-dragging="true"])[data-expansion="up"][data-float-x="start"],
+.nimbi-island[data-edge="floating"]:not([data-mode="idle"]):not([data-dragging="true"])[data-expansion="down"][data-float-x="start"] {
+  translate: 0 var(--nimbi-float-y-translate, -50%);
+}
+
+.nimbi-island[data-edge="floating"]:not([data-mode="idle"]):not([data-dragging="true"])[data-expansion="up"][data-float-x="end"],
+.nimbi-island[data-edge="floating"]:not([data-mode="idle"]):not([data-dragging="true"])[data-expansion="down"][data-float-x="end"] {
+  translate: -100% var(--nimbi-float-y-translate, -50%);
+}
+
+.nimbi-island[data-edge="floating"][data-expansion="up"] {
+  --nimbi-float-y-translate: -100%;
+}
+
+.nimbi-island[data-edge="floating"][data-expansion="down"] {
+  --nimbi-float-y-translate: 0;
+}
+
 .nimbi-island[data-edge="floating"]:not([data-mode="idle"]):not([data-dragging="true"])[data-expansion="left"] .nimbi-island__character {
   top: 50%;
   right: 8px;
@@ -522,6 +558,34 @@
   bottom: auto;
   left: 50%;
   transform: translateX(-50%);
+}
+
+.nimbi-island[data-edge="floating"][data-float-y="start"][data-expansion="left"] .nimbi-island__character,
+.nimbi-island[data-edge="floating"][data-float-y="start"][data-expansion="right"] .nimbi-island__character {
+  top: 8px;
+  bottom: auto;
+  transform: none;
+}
+
+.nimbi-island[data-edge="floating"][data-float-y="end"][data-expansion="left"] .nimbi-island__character,
+.nimbi-island[data-edge="floating"][data-float-y="end"][data-expansion="right"] .nimbi-island__character {
+  top: auto;
+  bottom: 8px;
+  transform: none;
+}
+
+.nimbi-island[data-edge="floating"][data-float-x="start"][data-expansion="up"] .nimbi-island__character,
+.nimbi-island[data-edge="floating"][data-float-x="start"][data-expansion="down"] .nimbi-island__character {
+  right: auto;
+  left: 8px;
+  transform: none;
+}
+
+.nimbi-island[data-edge="floating"][data-float-x="end"][data-expansion="up"] .nimbi-island__character,
+.nimbi-island[data-edge="floating"][data-float-x="end"][data-expansion="down"] .nimbi-island__character {
+  right: 8px;
+  left: auto;
+  transform: none;
 }
 
 .nimbi-island[data-edge="floating"][data-expansion="left"] .nimbi-island__compact-copy,
