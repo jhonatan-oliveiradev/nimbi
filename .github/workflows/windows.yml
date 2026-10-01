@@ -1,0 +1,29 @@
+name: Windows
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+jobs:
+  frontend:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - name: Install dependencies
+        shell: pwsh
+        run: npm install
+      - name: Test frontend
+        run: npm run test:run
+      - name: Build frontend
+        run: npm run build
+      - name: Upload generated lockfile
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: package-lock
+          path: package-lock.json
+          if-no-files-found: ignore
