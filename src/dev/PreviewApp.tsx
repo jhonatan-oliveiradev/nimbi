@@ -91,7 +91,7 @@ export function PreviewApp() {
     startX: number;
     startY: number;
     active: boolean;
-  }>();
+  } | null>(null);
 
   const snapshot = useMemo(() => NIMBI_FIXTURES[activity], [activity]);
   const renderedPlacement = dragPlacement ?? placement;
@@ -174,7 +174,7 @@ export function PreviewApp() {
         setPlacement(resolved);
       }
 
-      dragRef.current = undefined;
+      dragRef.current = null;
       setDragging(false);
       setDragPlacement(undefined);
       setDockCandidate(undefined);
