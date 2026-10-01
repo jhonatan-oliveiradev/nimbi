@@ -18,7 +18,7 @@ describe("PreviewApp", () => {
     fireEvent.change(slider, { target: { value: "38" } });
 
     expect(screen.getByText(/top · 50% · 38%/i)).toBeInTheDocument();
-    expect(screen.getByTestId("nimbi-cloud")).toHaveAttribute(
+    expect(screen.getByTestId("nimbi-avatar")).toHaveAttribute(
       "data-effective-opacity",
       "0.38",
     );
