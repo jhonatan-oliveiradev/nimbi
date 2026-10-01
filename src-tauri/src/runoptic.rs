@@ -150,11 +150,7 @@ pub fn derive_snapshot(
         );
     }
 
-    if let Some(error_activity) = newest_activity(
-        raw.activity
-            .iter()
-            .filter(|activity| activity.error.as_deref().and_then(nonempty).is_some()),
-    ) {
+    if let Some(error_activity) = latest_current_error(&raw.activity) {
         let session = raw
             .sessions
             .iter()
@@ -169,11 +165,11 @@ pub fn derive_snapshot(
 
     let active = newest_session(raw.sessions.iter().filter(|session| session.state == "working"));
     if let Some(session) = active {
-        let latest = newest_activity(
-            raw.activity
-                .iter()
-                .filter(|activity| activity.session_id == session.session_id),
-        );
+        let latest = raw
+            .activity
+            .iter()
+            .rev()
+            .find(|activity| activity.session_id == session.session_id);
         let activity = if latest.map(|item| item.kind.as_str()) == Some("query_started") {
             NimbiActivity::Thinking
         } else {
@@ -222,18 +218,25 @@ fn newest_session<'a>(
     items.into_iter().next()
 }
 
-fn newest_activity<'a>(
-    iter: impl Iterator<Item = &'a ActivityObservation>,
-) -> Option<&'a ActivityObservation> {
-    let mut items: Vec<_> = iter.collect();
-    items.sort_by(|a, b| {
-        b.provenance
-            .observed_at_ms
-            .cmp(&a.provenance.observed_at_ms)
-            .then_with(|| a.session_id.cmp(&b.session_id))
-            .then_with(|| a.id.cmp(&b.id))
-    });
-    items.into_iter().next()
+fn latest_current_error(activity: &[ActivityObservation]) -> Option<&ActivityObservation> {
+    use std::collections::BTreeMap;
+
+    let mut latest_by_session: BTreeMap<&str, (usize, &ActivityObservation)> = BTreeMap::new();
+    for (index, observation) in activity.iter().enumerate() {
+        latest_by_session.insert(observation.session_id.as_str(), (index, observation));
+    }
+
+    latest_by_session
+        .into_values()
+        .filter(|(_, observation)| {
+            observation.error.as_deref().and_then(nonempty).is_some()
+        })
+        .max_by(|(a_index, a), (b_index, b)| {
+            a_index
+                .cmp(b_index)
+                .then_with(|| b.session_id.cmp(&a.session_id))
+        })
+        .map(|(_, observation)| observation)
 }
 
 fn snapshot_from_session(
