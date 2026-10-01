@@ -37,8 +37,8 @@ export function useNimbiBehavior({
   const [transient, setTransient] = useState<NimbiTransientBehavior>();
   const [grab, setGrab] = useState(false);
   const [dragging, setDragging] = useState(false);
-  const hoverTimerRef = useRef<ReturnType<typeof setTimeout>>();
-  const transientTimerRef = useRef<ReturnType<typeof setTimeout>>();
+  const hoverTimerRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
+  const transientTimerRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
   const completionLatchRef = useRef(new CompletionLatch());
 
   const clearHoverTimer = useCallback(() => {
