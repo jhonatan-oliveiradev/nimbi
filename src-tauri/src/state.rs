@@ -71,9 +71,11 @@ impl NimbiSnapshot {
     }
 }
 
+use std::path::PathBuf;
 use std::sync::atomic::AtomicBool;
 use std::sync::{Arc, Mutex};
 
+use crate::preferences::NimbiPreferences;
 use crate::window::WindowGate;
 
 pub struct RuntimeState {
@@ -81,6 +83,8 @@ pub struct RuntimeState {
     pub hidden: AtomicBool,
     pub interactive: AtomicBool,
     pub window_gate: Arc<WindowGate>,
+    pub preferences: Mutex<NimbiPreferences>,
+    pub preferences_path: Mutex<Option<PathBuf>>,
 }
 
 impl RuntimeState {
@@ -90,6 +94,8 @@ impl RuntimeState {
             hidden: AtomicBool::new(false),
             interactive: AtomicBool::new(false),
             window_gate: Arc::new(WindowGate::new()),
+            preferences: Mutex::new(NimbiPreferences::default()),
+            preferences_path: Mutex::new(None),
         }
     }
 }
