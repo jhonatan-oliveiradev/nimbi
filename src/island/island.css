@@ -91,6 +91,27 @@
   cursor: grabbing;
 }
 
+.nimbi-island__character .nimbi-avatar {
+  transition: transform 180ms cubic-bezier(.2,.8,.2,1);
+}
+
+.nimbi-island[data-behavior="grab"] .nimbi-island__character .nimbi-avatar {
+  transform: translateY(1px) scale(.95, 1.04);
+}
+
+.nimbi-island[data-dragging="true"] .nimbi-island__character .nimbi-avatar {
+  transform: scale(1.06, .94);
+}
+
+.nimbi-island[data-behavior="release"] .nimbi-island__character .nimbi-avatar {
+  transform: translateY(-1px) scale(1.02);
+}
+
+.nimbi-island[data-reduced-motion="true"] .nimbi-island__character .nimbi-avatar {
+  transform: none;
+  transition: none;
+}
+
 .nimbi-island__character {
   position: absolute;
   z-index: 2;
