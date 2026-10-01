@@ -84,8 +84,8 @@ fn reposition(app: AppHandle, state: State<'_, RuntimeState>) {
     );
 }
 
-fn cursor_poll_should_run(collapsed: bool, interactive: bool) -> bool {
-    !collapsed && !interactive
+fn cursor_poll_should_run(collapsed: bool, _interactive: bool) -> bool {
+    !collapsed
 }
 
 fn polling_delay(hidden: bool, activity: &NimbiActivity) -> Duration {
