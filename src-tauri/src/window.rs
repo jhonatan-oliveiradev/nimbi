@@ -128,6 +128,10 @@ impl WindowGate {
         *self.rect.lock().expect("island rect lock poisoned") = rect;
     }
 
+    pub fn rect(&self) -> IslandRect {
+        *self.rect.lock().expect("island rect lock poisoned")
+    }
+
     pub fn forget_ignore_state(&self) {
         self.ignoring.store(false, Ordering::Relaxed);
     }
