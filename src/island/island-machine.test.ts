@@ -85,4 +85,13 @@ describe("IslandMachine", () => {
     vi.advanceTimersByTime(120_000);
     expect(machine.mode).toBe("attention");
   });
+
+  it("does not dismiss unresolved attention through the generic island toggle", () => {
+    const machine = new IslandMachine();
+    machine.setActivity("needs-input");
+
+    machine.toggleExpanded();
+
+    expect(machine.mode).toBe("attention");
+  });
 });
