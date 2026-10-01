@@ -1,6 +1,6 @@
 use crate::window::{
-    centered_top_geometry, hit_test, IslandRect, MonitorGeometry, Point, PANEL_H, PANEL_W,
-    STRIP_H, STRIP_W,
+    centered_top_geometry, evaluate_pointer, hit_test, IslandRect, MonitorGeometry, Point, PANEL_H,
+    PANEL_W, STRIP_H, STRIP_W,
 };
 
 #[test]
@@ -64,4 +64,31 @@ fn pointer_inside_transparent_host_but_outside_island_passes_through() {
     };
     let pointer = Point { x: 80.0, y: 120.0 };
     assert!(!hit_test(rect, pointer, 12.0));
+}
+
+#[test]
+fn stationary_pointer_rechecks_hit_state_after_island_geometry_changes() {
+    let point = Point { x: 400.0, y: 20.0 };
+    let previous = Point { x: 400.0, y: 20.0 };
+
+    let small = IslandRect {
+        x: 242.0,
+        y: 0.0,
+        w: 120.0,
+        h: 40.0,
+    };
+    let expanded = IslandRect {
+        x: 180.0,
+        y: 0.0,
+        w: 260.0,
+        h: 48.0,
+    };
+
+    let before = evaluate_pointer(small, point, previous, 12.0);
+    let after = evaluate_pointer(expanded, point, previous, 12.0);
+
+    assert!(!before.moved);
+    assert!(before.should_ignore);
+    assert!(!after.moved);
+    assert!(!after.should_ignore);
 }
