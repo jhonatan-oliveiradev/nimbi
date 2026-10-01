@@ -243,6 +243,12 @@
   box-shadow: inset 0 0 0 1px rgb(185 168 255 / 9%);
 }
 
+.nimbi-preview__shortcut {
+  margin-right: 5px;
+  color: rgb(255 255 255 / 34%);
+  font-variant-numeric: tabular-nums;
+}
+
 @keyframes nimbi-content-in {
   from {
     opacity: 0;
