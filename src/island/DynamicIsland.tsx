@@ -44,6 +44,13 @@ export interface DynamicIslandProps {
   passiveOpacity?: number;
   onPlacementPreview?: (placement: NimbiPlacement) => void;
   onPlacementCommit?: (placement: NimbiPlacement) => void;
+  onPassiveOpacityChange?: (value: number) => void;
+  onResetPlacement?: () => void;
+  nativeShell?: boolean;
+  onNativeDragStart?: () => void;
+  onNativeDragMove?: () => void;
+  onNativeDragEnd?: () => void;
+  onNativeDragCancel?: () => void;
 }
 
 function statusText(snapshot: NimbiSnapshot): string | undefined {
@@ -127,6 +134,13 @@ export function DynamicIsland({
   passiveOpacity = 0.72,
   onPlacementPreview,
   onPlacementCommit,
+  onPassiveOpacityChange,
+  onResetPlacement,
+  nativeShell = false,
+  onNativeDragStart,
+  onNativeDragMove,
+  onNativeDragEnd,
+  onNativeDragCancel,
 }: DynamicIslandProps) {
   const islandRef = useRef<HTMLElement | null>(null);
   const characterRef = useRef<HTMLDivElement | null>(null);
@@ -207,14 +221,18 @@ export function DynamicIsland({
     event.stopPropagation();
     event.currentTarget.setPointerCapture?.(event.pointerId);
     drag.begin(pointFromEvent(event));
+    onNativeDragStart?.();
   };
 
   const handleCharacterPointerMove = (event: ReactPointerEvent<HTMLDivElement>) => {
     drag.move(pointFromEvent(event));
+    if (drag.dragging) onNativeDragMove?.();
   };
 
   const handleCharacterPointerUp = (event: ReactPointerEvent<HTMLDivElement>) => {
+    const wasDragging = drag.dragging;
     drag.end(pointFromEvent(event));
+    if (wasDragging) onNativeDragEnd?.();
     if (event.currentTarget.hasPointerCapture?.(event.pointerId)) {
       event.currentTarget.releasePointerCapture?.(event.pointerId);
     }
@@ -239,7 +257,9 @@ export function DynamicIsland({
       aria-label="Nimbi"
       initial={false}
       style={{
-        ...placementStyle(activePlacement, direction, expanded),
+        ...(nativeShell
+          ? { top: 0, left: 0, right: "auto", bottom: "auto", translate: "0 0" }
+          : placementStyle(activePlacement, direction, expanded)),
         opacity: mode === "hidden" ? 0 : 1,
       }}
       animate={{
@@ -269,7 +289,10 @@ export function DynamicIsland({
         onPointerDown={handleCharacterPointerDown}
         onPointerMove={handleCharacterPointerMove}
         onPointerUp={handleCharacterPointerUp}
-        onPointerCancel={() => drag.cancel()}
+        onPointerCancel={() => {
+          drag.cancel();
+          onNativeDragCancel?.();
+        }}
       >
         <NimbiCloud
           activity={snapshot.activity}
@@ -324,6 +347,36 @@ export function DynamicIsland({
               </button>
               <button type="button" disabled>
                 Allow
+              </button>
+            </div>
+          ) : null}
+
+          {mode === "expanded" ? (
+            <div className="nimbi-island__presence-controls">
+              <label className="nimbi-island__opacity-control">
+                <span>Presence</span>
+                <input
+                  aria-label="Nimbi opacity"
+                  type="range"
+                  min="20"
+                  max="100"
+                  step="1"
+                  value={Math.round(passiveOpacity * 100)}
+                  onChange={(event) =>
+                    onPassiveOpacityChange?.(Number(event.currentTarget.value) / 100)
+                  }
+                />
+                <output>{Math.round(passiveOpacity * 100)}%</output>
+              </label>
+              <button
+                type="button"
+                className="nimbi-island__reset-position"
+                onClick={(event) => {
+                  event.stopPropagation();
+                  onResetPlacement?.();
+                }}
+              >
+                Reset position
               </button>
             </div>
           ) : null}
