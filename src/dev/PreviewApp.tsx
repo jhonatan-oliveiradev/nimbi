@@ -84,6 +84,7 @@ export function PreviewApp() {
   const [presence, setPresence] = useState<NimbiPresence>(DEFAULT_PRESENCE);
   const [viewport, setViewport] = useState<ViewportRect>(() => viewportNow());
   const [dragging, setDragging] = useState(false);
+  const [preferencesHydrated, setPreferencesHydrated] = useState(false);
   const [dragPlacement, setDragPlacement] = useState<NimbiPlacement>();
   const [dockCandidate, setDockCandidate] = useState<NimbiEdge>();
   const dragRef = useRef<{
@@ -116,19 +117,27 @@ export function PreviewApp() {
   useEffect(() => {
     try {
       const raw = localStorage.getItem(STORAGE_KEY);
-      if (!raw) return;
-      const parsed = JSON.parse(raw) as Partial<StoredPreviewPreferences>;
-      if (parsed.placement) setPlacement(normalizePlacement(parsed.placement));
-      if (parsed.presence) setPresence(normalizePresence(parsed.presence));
+      if (raw) {
+        const parsed = JSON.parse(raw) as Partial<StoredPreviewPreferences>;
+        if (parsed.placement) setPlacement(normalizePlacement(parsed.placement));
+        if (parsed.presence) setPresence(normalizePresence(parsed.presence));
+      }
     } catch {
       // Preview preferences are disposable; malformed state falls back safely.
+    } finally {
+      setPreferencesHydrated(true);
     }
   }, []);
 
   useEffect(() => {
-    const value: StoredPreviewPreferences = { placement, presence };
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(value));
-  }, [placement, presence]);
+    if (!preferencesHydrated) return;
+    try {
+      const value: StoredPreviewPreferences = { placement, presence };
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(value));
+    } catch {
+      // Storage can be unavailable in hardened/private browser contexts.
+    }
+  }, [placement, preferencesHydrated, presence]);
 
   useEffect(() => {
     const onPointerMove = (event: PointerEvent) => {
