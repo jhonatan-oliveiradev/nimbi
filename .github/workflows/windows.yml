@@ -16,6 +16,8 @@ jobs:
       - name: Install dependencies
         shell: pwsh
         run: npm ci
+      - name: Audit production dependencies
+        run: npm audit --omit=dev --audit-level=moderate
       - name: Test frontend
         run: npm run test:run
       - name: Build frontend
