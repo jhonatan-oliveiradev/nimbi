@@ -31,6 +31,8 @@ export interface DynamicIslandProps {
   dragging?: boolean;
   anchor?: { x: number; y: number };
   onCharacterPointerDown?: PointerEventHandler<HTMLDivElement>;
+  onPresenceChange?: (idleOpacity: number) => void;
+  onResetPlacement?: () => void;
 }
 
 function statusText(snapshot: NimbiSnapshot): string | undefined {
@@ -77,6 +79,8 @@ export function DynamicIsland({
   dragging = false,
   anchor,
   onCharacterPointerDown,
+  onPresenceChange,
+  onResetPlacement,
 }: DynamicIslandProps) {
   const islandRef = useRef<HTMLElement | null>(null);
   const characterRef = useRef<HTMLDivElement | null>(null);
@@ -234,6 +238,42 @@ export function DynamicIsland({
               <button type="button" disabled>
                 Allow
               </button>
+            </div>
+          ) : null}
+
+          {mode === "expanded" && (onPresenceChange || onResetPlacement) ? (
+            <div
+              className="nimbi-island__preferences"
+              onClick={(event) => event.stopPropagation()}
+              onPointerDown={(event) => event.stopPropagation()}
+            >
+              {onPresenceChange ? (
+                <label className="nimbi-island__presence-control">
+                  <span>Presence</span>
+                  <input
+                    aria-label="Nimbi presence"
+                    type="range"
+                    min="25"
+                    max="100"
+                    step="1"
+                    value={Math.round(presence.idleOpacity * 100)}
+                    onChange={(event) =>
+                      onPresenceChange(Number(event.currentTarget.value) / 100)
+                    }
+                  />
+                  <span>{Math.round(presence.idleOpacity * 100)}%</span>
+                </label>
+              ) : null}
+
+              {onResetPlacement ? (
+                <button
+                  className="nimbi-island__reset-placement"
+                  type="button"
+                  onClick={onResetPlacement}
+                >
+                  Top center
+                </button>
+              ) : null}
             </div>
           ) : null}
         </div>
