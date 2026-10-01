@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   DEFAULT_PLACEMENT,
   DEFAULT_PRESENCE,
+  deriveAxisAlignment,
   deriveExpansionDirection,
   deriveOrientation,
   effectivePresence,
@@ -75,6 +76,12 @@ describe("placement model", () => {
     expect(
       deriveExpansionDirection({ mode: "floating", x: 0.2, y: 0.5 }, viewport),
     ).toBe("right");
+  });
+
+  it("aligns floating surfaces away from nearby perpendicular edges", () => {
+    expect(deriveAxisAlignment(0.1)).toBe("start");
+    expect(deriveAxisAlignment(0.5)).toBe("center");
+    expect(deriveAxisAlignment(0.9)).toBe("end");
   });
 
   it("snaps points inside the magnetic edge threshold", () => {
