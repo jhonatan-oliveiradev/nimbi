@@ -29,6 +29,7 @@ export interface DynamicIslandProps {
   presence?: NimbiPresence;
   viewport?: ViewportRect;
   dragging?: boolean;
+  anchor?: { x: number; y: number };
   onCharacterPointerDown?: PointerEventHandler<HTMLDivElement>;
 }
 
@@ -74,6 +75,7 @@ export function DynamicIsland({
   presence = DEFAULT_PRESENCE,
   viewport = { width: 1200, height: 800 },
   dragging = false,
+  anchor,
   onCharacterPointerDown,
 }: DynamicIslandProps) {
   const islandRef = useRef<HTMLElement | null>(null);
@@ -129,6 +131,12 @@ export function DynamicIsland({
   const edge = placement.mode === "docked" ? placement.edge : "floating";
   const style = {
     "--nimbi-presence": String(presenceOpacity),
+    ...(anchor
+      ? {
+          "--nimbi-anchor-x": `${anchor.x}px`,
+          "--nimbi-anchor-y": `${anchor.y}px`,
+        }
+      : {}),
   } as CSSProperties;
   const showStatus = mode === "compact" && Boolean(status);
   const showDetails = mode === "attention" || mode === "expanded";
