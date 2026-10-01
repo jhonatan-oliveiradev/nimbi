@@ -51,6 +51,24 @@ pub struct Point {
     pub y: f64,
 }
 
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct PointerEvaluation {
+    pub moved: bool,
+    pub should_ignore: bool,
+}
+
+pub fn evaluate_pointer(
+    rect: IslandRect,
+    point: Point,
+    previous: Point,
+    margin: f64,
+) -> PointerEvaluation {
+    PointerEvaluation {
+        moved: (point.x - previous.x).abs() >= 1.0 || (point.y - previous.y).abs() >= 1.0,
+        should_ignore: !hit_test(rect, point, margin),
+    }
+}
+
 #[derive(Clone, Copy, Serialize)]
 #[serde(rename_all = "camelCase")]
 struct CursorPayload {
@@ -237,7 +255,10 @@ pub fn spawn_cursor_poll(app: AppHandle, gate: Arc<WindowGate>) {
         let mut last_monitor = current_monitor_key(&app);
         loop {
             gate.wait_until_active();
-            let mut last = (f64::MIN, f64::MIN);
+            let mut last = Point {
+                x: f64::MIN,
+                y: f64::MIN,
+            };
             let mut ticks = 0_u32;
 
             while gate.is_active() {
@@ -261,20 +282,19 @@ pub fn spawn_cursor_poll(app: AppHandle, gate: Arc<WindowGate>) {
                     y: (cy - origin.y as f64) / scale,
                 };
 
-                if (point.x - last.0).abs() < 1.0 && (point.y - last.1).abs() < 1.0 {
-                    continue;
-                }
-                last = (point.x, point.y);
-
                 let rect = *gate.rect.lock().expect("island rect lock poisoned");
-                let accepts_pointer = hit_test(rect, point, HIT_MARGIN);
-                let should_ignore = !accepts_pointer;
-                if gate.ignoring.load(Ordering::Relaxed) != should_ignore {
-                    gate.ignoring.store(should_ignore, Ordering::Relaxed);
-                    let _ = win.set_ignore_cursor_events(should_ignore);
+                let evaluation = evaluate_pointer(rect, point, last, HIT_MARGIN);
+
+                if gate.ignoring.load(Ordering::Relaxed) != evaluation.should_ignore {
+                    gate.ignoring
+                        .store(evaluation.should_ignore, Ordering::Relaxed);
+                    let _ = win.set_ignore_cursor_events(evaluation.should_ignore);
                 }
 
-                let _ = win.emit("nimbi://cursor", CursorPayload { x: point.x, y: point.y });
+                if evaluation.moved {
+                    last = point;
+                    let _ = win.emit("nimbi://cursor", CursorPayload { x: point.x, y: point.y });
+                }
             }
         }
     });
