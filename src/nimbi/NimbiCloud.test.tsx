@@ -55,7 +55,11 @@ describe("NimbiCloud", () => {
     expect(cloud).toHaveAttribute("data-gaze-x", "0");
     expect(cloud).toHaveAttribute("data-looping", "false");
 
-    if (original) Object.defineProperty(document, "visibilityState", original);
+    if (original) {
+      Object.defineProperty(document, "visibilityState", original);
+    } else {
+      Reflect.deleteProperty(document, "visibilityState");
+    }
   });
 
   it("marks complete as a one-shot reaction rather than a looping state", () => {
