@@ -26,7 +26,7 @@ pub const STRIP_W: f64 = 220.0;
 pub const STRIP_H: f64 = 6.0;
 const HIT_MARGIN: f64 = 12.0;
 
-type MonitorKey = (String, i32, i32, u32, u32, u64);
+pub type MonitorKey = (String, i32, i32, u32, u32, u64);
 
 #[derive(Clone, Copy, Debug)]
 pub struct MonitorGeometry {
@@ -513,24 +513,26 @@ pub fn apply_geometry(app: &AppHandle, collapsed: bool) {
     let _ = win.set_always_on_top(true);
 }
 
-fn current_monitor_key(app: &AppHandle) -> Option<Vec<MonitorKey>> {
-    let mut monitors = monitor_work_areas(app);
+pub fn monitor_topology_key(monitors: &[MonitorWorkArea]) -> Vec<MonitorKey> {
+    let mut monitors = monitors.to_vec();
     monitors.sort_by(|a, b| a.id.cmp(&b.id));
-    Some(
-        monitors
-            .into_iter()
-            .map(|monitor| {
-                (
-                    monitor.id,
-                    monitor.x,
-                    monitor.y,
-                    monitor.width,
-                    monitor.height,
-                    monitor.scale.to_bits(),
-                )
-            })
-            .collect(),
-    )
+    monitors
+        .into_iter()
+        .map(|monitor| {
+            (
+                monitor.id,
+                monitor.x,
+                monitor.y,
+                monitor.width,
+                monitor.height,
+                monitor.scale.to_bits(),
+            )
+        })
+        .collect()
+}
+
+fn current_monitor_key(app: &AppHandle) -> Option<Vec<MonitorKey>> {
+    Some(monitor_topology_key(&monitor_work_areas(app)))
 }
 
 #[cfg(windows)]
