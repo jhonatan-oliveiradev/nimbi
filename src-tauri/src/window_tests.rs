@@ -1,6 +1,8 @@
+use crate::preferences::{NimbiEdge, NimbiPlacement};
 use crate::window::{
-    centered_top_geometry, evaluate_pointer, hit_test, IslandRect, MonitorGeometry, Point, PANEL_H,
-    PANEL_W, STRIP_H, STRIP_W,
+    adaptive_geometry, centered_top_geometry, evaluate_pointer, hit_test, IslandRect,
+    MonitorGeometry, Point, ShellOrientation, WorkAreaGeometry, PANEL_H, PANEL_W, STRIP_H,
+    STRIP_W,
 };
 
 #[test]
@@ -91,4 +93,112 @@ fn stationary_pointer_rechecks_hit_state_after_island_geometry_changes() {
     assert!(before.should_ignore);
     assert!(!after.moved);
     assert!(!after.should_ignore);
+}
+
+
+#[test]
+fn adaptive_top_dock_preserves_normalized_anchor() {
+    let work = WorkAreaGeometry {
+        x: 0,
+        y: 0,
+        width: 1920,
+        height: 1040,
+        scale: 1.0,
+    };
+    let layout = adaptive_geometry(
+        work,
+        &NimbiPlacement::Docked {
+            edge: NimbiEdge::Top,
+            offset: 0.8,
+            monitor_id: None,
+        },
+        false,
+    );
+
+    assert_eq!(layout.orientation, ShellOrientation::Horizontal);
+    assert_eq!(layout.window.y, 0);
+    let global_anchor_x = layout.window.x as f64 + layout.anchor_x;
+    assert!((global_anchor_x - 1536.0).abs() < 0.5);
+}
+
+#[test]
+fn adaptive_right_dock_uses_vertical_host_at_scaled_dpi() {
+    let work = WorkAreaGeometry {
+        x: 0,
+        y: 0,
+        width: 2560,
+        height: 1400,
+        scale: 1.5,
+    };
+    let layout = adaptive_geometry(
+        work,
+        &NimbiPlacement::Docked {
+            edge: NimbiEdge::Right,
+            offset: 0.4,
+            monitor_id: None,
+        },
+        false,
+    );
+
+    assert_eq!(layout.orientation, ShellOrientation::Vertical);
+    assert_eq!(layout.window.width, 450);
+    assert_eq!(layout.window.height, 960);
+    assert_eq!(layout.window.x, 2560 - 450);
+    let global_anchor_y = layout.window.y as f64 + layout.anchor_y;
+    assert!((global_anchor_y - 560.0).abs() < 0.5);
+}
+
+#[test]
+fn adaptive_floating_near_left_prefers_vertical_and_stays_in_work_area() {
+    let work = WorkAreaGeometry {
+        x: -1920,
+        y: 20,
+        width: 1920,
+        height: 1040,
+        scale: 1.0,
+    };
+    let layout = adaptive_geometry(
+        work,
+        &NimbiPlacement::Floating {
+            x: 0.08,
+            y: 0.95,
+            monitor_id: None,
+        },
+        false,
+    );
+
+    assert_eq!(layout.orientation, ShellOrientation::Vertical);
+    assert!(layout.window.x >= work.x);
+    assert!(layout.window.y >= work.y);
+    assert!(layout.window.x + layout.window.width as i32 <= work.x + work.width as i32);
+    assert!(layout.window.y + layout.window.height as i32 <= work.y + work.height as i32);
+
+    let global_x = layout.window.x as f64 + layout.anchor_x;
+    let global_y = layout.window.y as f64 + layout.anchor_y;
+    assert!((global_x - (-1920.0 + 1920.0 * 0.08)).abs() < 0.5);
+    assert!((global_y - (20.0 + 1040.0 * 0.95)).abs() < 0.5);
+}
+
+#[test]
+fn collapsed_left_dock_uses_vertical_wake_strip() {
+    let work = WorkAreaGeometry {
+        x: 0,
+        y: 0,
+        width: 1920,
+        height: 1080,
+        scale: 1.0,
+    };
+    let layout = adaptive_geometry(
+        work,
+        &NimbiPlacement::Docked {
+            edge: NimbiEdge::Left,
+            offset: 0.5,
+            monitor_id: None,
+        },
+        true,
+    );
+
+    assert_eq!(layout.window.width, STRIP_H as u32);
+    assert_eq!(layout.window.height, STRIP_W as u32);
+    assert_eq!(layout.window.x, 0);
 }
