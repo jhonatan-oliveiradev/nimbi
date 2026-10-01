@@ -25,6 +25,16 @@ describe("DynamicIsland", () => {
     );
   });
 
+  it("shows known attribution in compact state", () => {
+    render(
+      <DynamicIsland snapshot={NIMBI_FIXTURES.working} mode="compact" />,
+    );
+
+    expect(screen.getByTestId("nimbi-meta")).toHaveTextContent(
+      "openai · gpt-5.6 · nimbi",
+    );
+  });
+
   it("renders attribution only when it is known", () => {
     const snapshot = {
       ...NIMBI_FIXTURES.working,
