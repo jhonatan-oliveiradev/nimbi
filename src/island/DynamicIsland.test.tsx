@@ -1,5 +1,5 @@
 import { render, screen } from "@testing-library/react";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { NIMBI_FIXTURES } from "../telemetry/fixtures";
 import { DynamicIsland } from "./DynamicIsland";
 import type { IslandMode } from "./island-machine";
@@ -59,6 +59,37 @@ describe("DynamicIsland", () => {
     const shell = screen.getByTestId("nimbi-island");
     expect(shell).toHaveAttribute("data-muted", "true");
     expect(screen.queryByTestId("nimbi-attention")).toBeNull();
+  });
+
+  it("reports rendered island bounds to the native shell", () => {
+    const onBoundsChange = vi.fn();
+    const rectSpy = vi.spyOn(Element.prototype, "getBoundingClientRect").mockReturnValue({
+      x: 242,
+      y: 0,
+      width: 156,
+      height: 40,
+      top: 0,
+      right: 398,
+      bottom: 40,
+      left: 242,
+      toJSON: () => ({}),
+    } as DOMRect);
+
+    render(
+      <DynamicIsland
+        snapshot={NIMBI_FIXTURES.idle}
+        mode="idle"
+        onBoundsChange={onBoundsChange}
+      />,
+    );
+
+    expect(onBoundsChange).toHaveBeenCalledWith({
+      x: 242,
+      y: 0,
+      width: 156,
+      height: 40,
+    });
+    rectSpy.mockRestore();
   });
 
   it.each<IslandMode>([
