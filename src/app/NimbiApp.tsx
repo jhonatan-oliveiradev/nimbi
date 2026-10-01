@@ -4,6 +4,11 @@ import { useReducedMotion } from "motion/react";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { DynamicIsland } from "../island/DynamicIsland";
 import { IslandMachine, type IslandMode } from "../island/island-machine";
+import {
+  DEFAULT_PLACEMENT,
+  type NimbiPlacement,
+  type WorkArea,
+} from "../placement/placement";
 import type { NimbiSnapshot } from "../telemetry/contract";
 import { NIMBI_FIXTURES } from "../telemetry/fixtures";
 import { useNimbiSnapshot } from "../telemetry/use-nimbi-snapshot";
@@ -14,6 +19,10 @@ export interface NimbiAppProps {
   fixtureOnly?: boolean;
   reducedMotion?: boolean;
   onToggle?: () => void;
+  placement?: NimbiPlacement;
+  workArea?: WorkArea;
+  passiveOpacity?: number;
+  onPlacementChange?: (placement: NimbiPlacement) => void;
 }
 
 function defaultMode(snapshot: NimbiSnapshot): IslandMode {
@@ -43,6 +52,10 @@ export function NimbiApp({
   fixtureOnly = false,
   reducedMotion = false,
   onToggle,
+  placement,
+  workArea,
+  passiveOpacity = 0.72,
+  onPlacementChange,
 }: NimbiAppProps) {
   const nativeRuntime = snapshot === undefined && isTauriRuntime();
   const liveSnapshot = useNimbiSnapshot(nativeRuntime);
@@ -59,6 +72,18 @@ export function NimbiApp({
     defaultMode(currentSnapshot),
   );
   const [desktopPointer, setDesktopPointer] = useState<{ x: number; y: number }>();
+  const [localPlacement, setLocalPlacement] =
+    useState<NimbiPlacement>(DEFAULT_PLACEMENT);
+  const currentPlacement = placement ?? localPlacement;
+  const currentWorkArea: WorkArea =
+    workArea ??
+    {
+      x: 0,
+      y: 0,
+      width: typeof window === "undefined" ? 640 : window.innerWidth,
+      height: typeof window === "undefined" ? 300 : window.innerHeight,
+      monitorId: "primary",
+    };
 
   useEffect(() => {
     machine.onTransition = (_from, next) => setMachineMode(next);
@@ -121,6 +146,11 @@ export function NimbiApp({
     [nativeRuntime],
   );
 
+  const handlePlacementCommit = (next: NimbiPlacement) => {
+    if (placement === undefined) setLocalPlacement(next);
+    onPlacementChange?.(next);
+  };
+
   const handleToggle = () => {
     if (onToggle) {
       onToggle();
@@ -140,6 +170,10 @@ export function NimbiApp({
       onPointerEnter={mode === undefined ? () => machine.pointerEnter() : undefined}
       onPointerLeave={mode === undefined ? () => machine.pointerLeave() : undefined}
       pointer={desktopPointer}
+      placement={currentPlacement}
+      workArea={currentWorkArea}
+      passiveOpacity={passiveOpacity}
+      onPlacementCommit={handlePlacementCommit}
     />
   );
 }
