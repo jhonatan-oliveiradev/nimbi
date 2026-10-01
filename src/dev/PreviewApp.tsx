@@ -19,6 +19,44 @@ const ACTIVITIES: NimbiActivity[] = [
   "offline",
 ];
 
+const PLACEMENT_FIXTURES: Array<{
+  label: string;
+  placement: NimbiPlacement;
+}> = [
+  {
+    label: "Dock top",
+    placement: { mode: "docked", monitorId: "preview", edge: "top", offset: 0.5 },
+  },
+  {
+    label: "Dock right",
+    placement: { mode: "docked", monitorId: "preview", edge: "right", offset: 0.5 },
+  },
+  {
+    label: "Dock bottom",
+    placement: { mode: "docked", monitorId: "preview", edge: "bottom", offset: 0.5 },
+  },
+  {
+    label: "Dock left",
+    placement: { mode: "docked", monitorId: "preview", edge: "left", offset: 0.5 },
+  },
+  {
+    label: "Float top left",
+    placement: { mode: "floating", monitorId: "preview", x: 0.08, y: 0.1 },
+  },
+  {
+    label: "Float top right",
+    placement: { mode: "floating", monitorId: "preview", x: 0.92, y: 0.1 },
+  },
+  {
+    label: "Float bottom left",
+    placement: { mode: "floating", monitorId: "preview", x: 0.08, y: 0.9 },
+  },
+  {
+    label: "Float bottom right",
+    placement: { mode: "floating", monitorId: "preview", x: 0.92, y: 0.9 },
+  },
+];
+
 function viewportWorkArea(): WorkArea {
   return {
     x: 0,
@@ -76,6 +114,21 @@ export function PreviewApp() {
       <div className="nimbi-preview__placement-readout" aria-live="polite">
         {placementLabel(placement)} · {Math.round(passiveOpacity * 100)}%
       </div>
+
+      <nav
+        className="nimbi-preview__placement-fixtures"
+        aria-label="Nimbi placement fixtures"
+      >
+        {PLACEMENT_FIXTURES.map(({ label, placement: fixture }) => (
+          <button
+            key={label}
+            type="button"
+            onClick={() => setPlacement(fixture)}
+          >
+            {label}
+          </button>
+        ))}
+      </nav>
 
       <nav className="nimbi-preview__controls" aria-label="Nimbi preview states">
         {ACTIVITIES.map((state, index) => (
