@@ -406,7 +406,7 @@ fn monitor_id(monitor: &Monitor, index: usize) -> String {
     monitor
         .name()
         .filter(|name| !name.trim().is_empty())
-        .map(str::to_string)
+        .map(|name| name.to_string())
         .unwrap_or_else(|| {
             let pos = monitor.position();
             format!("monitor-{index}-{}-{}", pos.x, pos.y)
