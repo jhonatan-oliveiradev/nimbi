@@ -14,6 +14,10 @@ export interface UseNimbiDragOptions {
   threshold?: number;
   onPreview?: (placement: NimbiPlacement) => void;
   onCommit?: (placement: NimbiPlacement) => void;
+  onDragStart?: () => void;
+  onDragMove?: () => void;
+  onDragEnd?: () => void;
+  onDragCancel?: () => void;
 }
 
 export interface NimbiDragController {
@@ -36,6 +40,10 @@ export function useNimbiDrag({
   threshold = DRAG_THRESHOLD,
   onPreview,
   onCommit,
+  onDragStart,
+  onDragMove,
+  onDragEnd,
+  onDragCancel,
 }: UseNimbiDragOptions): NimbiDragController {
   const startRef = useRef<Point | undefined>(undefined);
   const draggingRef = useRef(false);
@@ -65,31 +73,36 @@ export function useNimbiDrag({
         draggingRef.current = true;
         suppressClickRef.current = true;
         setDragging(true);
+        onDragStart?.();
       }
 
+      onDragMove?.();
       const next = snapPlacement(point, workArea, placement);
       setPreviewPlacement(next);
       onPreview?.(next);
     },
-    [onPreview, placement, threshold, workArea],
+    [onDragMove, onDragStart, onPreview, placement, threshold, workArea],
   );
 
   const finish = useCallback(
     (point?: Point, commit = true) => {
-      if (draggingRef.current && point && commit) {
+      const wasDragging = draggingRef.current;
+      if (wasDragging && point && commit) {
         const next = snapPlacement(point, workArea, placement);
         setPreviewPlacement(next);
         onPreview?.(next);
         onCommit?.(next);
+        onDragEnd?.();
       } else if (!commit) {
         setPreviewPlacement(placement);
+        if (wasDragging) onDragCancel?.();
       }
 
       startRef.current = undefined;
       draggingRef.current = false;
       setDragging(false);
     },
-    [onCommit, onPreview, placement, workArea],
+    [onCommit, onDragCancel, onDragEnd, onPreview, placement, workArea],
   );
 
   const end = useCallback((point: Point) => finish(point, true), [finish]);
