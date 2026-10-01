@@ -36,8 +36,7 @@ export class IslandMachine {
   pointerEnter() {
     this.clearHideTimer();
     if (this.mode === "hidden") {
-      this.passiveMode = "idle";
-      this.transition("idle");
+      this.transition(this.passiveMode);
     }
   }
 
