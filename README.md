@@ -55,29 +55,34 @@ npm install
 npm run tauri:dev
 ```
 
-### Windows Application Control fallback
+### Windows Application Control development constraint
 
-On machines where Windows Application Control blocks the native binding used by `@tauri-apps/cli` (`cli.win32-x64-msvc.node`), reinstalling npm dependencies does not address the actual policy block.
+On a Windows machine where Smart App Control / Application Control is enforcing, local native compilation may be blocked before Nimbi itself is produced.
 
-Tauri can be run without the Node Tauri CLI. Start the frontend dev server in one terminal:
+We confirmed two distinct enforcement points on the target machine:
 
-```powershell
-npm run dev
+1. the native binding used by `@tauri-apps/cli` (`cli.win32-x64-msvc.node`);
+2. fresh Cargo build-script executables under `src-tauri/target/debug/build/*/build-script-build.exe`.
+
+Because Cargo must execute those transient unsigned build binaries, bypassing the Node Tauri CLI with `cargo run` does **not** solve the policy boundary.
+
+Do not disable Smart App Control or Device Guard for Nimbi development.
+
+Use this workflow instead:
+
+```text
+local machine
+  └─ npm run dev
+     └─ browser fixture / production React components
+
+GitHub Actions (Windows)
+  └─ frontend tests + build
+  └─ Rust tests + clippy
+  └─ native Tauri build
+     └─ nimbi.exe artifact
 ```
 
-Then start the Rust desktop process directly in a second terminal:
-
-```powershell
-npm run desktop:rust
-```
-
-This follows Tauri's supported direct-Cargo debugging path and avoids loading `@tauri-apps/cli` entirely. The npm script expands to:
-
-```powershell
-cargo run --manifest-path src-tauri/Cargo.toml --no-default-features
-```
-
-If Windows Application Control then blocks the locally built `nimbi.exe` itself, stop there: that is a separate code-signing/application-control issue. Do not disable Smart App Control or Device Guard just to run Nimbi; continue visual work through the browser preview and use CI native-build results until we add a trusted signing path.
+The CI native build is the authoritative compile/link check until Nimbi has a trusted code-signing path or native testing is moved to a Windows development environment where Smart App Control is not enforcing.
 
 
 For explicit local testing only, the RunOptic base URL can be overridden with `NIMBI_RUNOPTIC_BASE_URL`. Plain HTTP overrides are accepted only for loopback hosts.
