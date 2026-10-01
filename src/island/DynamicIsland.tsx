@@ -7,7 +7,8 @@ import {
   type PointerEvent as ReactPointerEvent,
 } from "react";
 import { motion } from "motion/react";
-import { NimbiCloud } from "../nimbi/NimbiCloud";
+import { NimbiAvatar } from "../avatar/NimbiAvatar";
+import type { NimbiBehavior } from "../behavior/nimbi-behavior";
 import {
   DEFAULT_PLACEMENT,
   expansionDirection,
@@ -38,6 +39,12 @@ export interface DynamicIslandProps {
   onBoundsChange?: (rect: { x: number; y: number; width: number; height: number }) => void;
   onPointerEnter?: () => void;
   onPointerLeave?: () => void;
+  behavior?: NimbiBehavior;
+  onAvatarTap?: () => void;
+  onAvatarGrab?: () => void;
+  onAvatarDragging?: () => void;
+  onAvatarRelease?: () => void;
+  onAvatarDragCancel?: () => void;
   pointer?: { x: number; y: number };
   placement?: NimbiPlacement;
   workArea?: WorkArea;
@@ -158,6 +165,12 @@ export function DynamicIsland({
   onBoundsChange,
   onPointerEnter,
   onPointerLeave,
+  behavior,
+  onAvatarTap,
+  onAvatarGrab,
+  onAvatarDragging,
+  onAvatarRelease,
+  onAvatarDragCancel,
   pointer: externalPointer,
   placement = DEFAULT_PLACEMENT,
   workArea = DEFAULT_WORK_AREA,
@@ -194,10 +207,16 @@ export function DynamicIsland({
     workArea,
     onPreview: onPlacementPreview,
     onCommit: onPlacementCommit,
-    onDragStart: onNativeDragStart,
+    onDragStart: () => {
+      onAvatarDragging?.();
+      onNativeDragStart?.();
+    },
     onDragMove: onNativeDragMove,
     onDragEnd: onNativeDragEnd,
-    onDragCancel: onNativeDragCancel,
+    onDragCancel: () => {
+      onAvatarDragCancel?.();
+      onNativeDragCancel?.();
+    },
   });
   const activePlacement =
     nativeShell ? placement : drag.dragging ? drag.previewPlacement : placement;
@@ -255,6 +274,7 @@ export function DynamicIsland({
   const handleCharacterPointerDown = (event: ReactPointerEvent<HTMLDivElement>) => {
     event.stopPropagation();
     event.currentTarget.setPointerCapture?.(event.pointerId);
+    onAvatarGrab?.();
     drag.begin(pointFromEvent(event));
   };
 
@@ -263,7 +283,9 @@ export function DynamicIsland({
   };
 
   const handleCharacterPointerUp = (event: ReactPointerEvent<HTMLDivElement>) => {
+    const wasDragging = drag.dragging;
     drag.end(pointFromEvent(event));
+    if (wasDragging) onAvatarRelease?.();
     if (event.currentTarget.hasPointerCapture?.(event.pointerId)) {
       event.currentTarget.releasePointerCapture?.(event.pointerId);
     }
@@ -271,6 +293,7 @@ export function DynamicIsland({
 
   const handleClick = () => {
     if (drag.consumeSuppressedClick()) return;
+    onAvatarTap?.();
     onToggle?.();
   };
 
@@ -320,9 +343,20 @@ export function DynamicIsland({
         onPointerDown={handleCharacterPointerDown}
         onPointerMove={handleCharacterPointerMove}
         onPointerUp={handleCharacterPointerUp}
-        onPointerCancel={() => drag.cancel()}
+        onPointerCancel={() => {
+          drag.cancel();
+          onAvatarDragCancel?.();
+        }}
       >
-        <NimbiCloud
+        <NimbiAvatar
+          behavior={behavior ?? (
+            snapshot.activity === "thinking" ? "thinking"
+              : snapshot.activity === "working" ? "working"
+                : snapshot.activity === "complete" ? "complete"
+                  : snapshot.activity === "needs-input" ? "needs-input"
+                    : snapshot.activity === "error" ? "error"
+                      : "idle"
+          )}
           activity={snapshot.activity}
           hidden={mode === "hidden"}
           reducedMotion={reducedMotion}
