@@ -1,4 +1,4 @@
-import { useLayoutEffect, useRef } from "react";
+import { useLayoutEffect, useRef, useState } from "react";
 import { motion } from "motion/react";
 import { NimbiCloud } from "../nimbi/NimbiCloud";
 import type { NimbiSnapshot } from "../telemetry/contract";
@@ -55,18 +55,27 @@ export function DynamicIsland({
   onPointerLeave,
 }: DynamicIslandProps) {
   const islandRef = useRef<HTMLElement | null>(null);
+  const [pointer, setPointer] = useState<{ x: number; y: number }>();
+  const [cloudBounds, setCloudBounds] = useState<{
+    x: number;
+    y: number;
+    width: number;
+    height: number;
+  }>();
 
   useLayoutEffect(() => {
     if (!onBoundsChange || !islandRef.current) return;
     const element = islandRef.current;
     const report = () => {
       const rect = element.getBoundingClientRect();
-      onBoundsChange({
+      const bounds = {
         x: rect.x,
         y: rect.y,
         width: rect.width,
         height: rect.height,
-      });
+      };
+      setCloudBounds(bounds);
+      onBoundsChange(bounds);
     };
 
     report();
@@ -98,13 +107,21 @@ export function DynamicIsland({
       transition={{ type: "spring", stiffness: 420, damping: 36 }}
       onClick={onToggle}
       onPointerEnter={onPointerEnter}
-      onPointerLeave={onPointerLeave}
+      onPointerMove={(event) =>
+        setPointer({ x: event.clientX, y: event.clientY })
+      }
+      onPointerLeave={() => {
+        setPointer(undefined);
+        onPointerLeave?.();
+      }}
     >
       <div className="nimbi-island__character">
         <NimbiCloud
           activity={snapshot.activity}
           hidden={mode === "hidden"}
           reducedMotion={reducedMotion}
+          pointer={pointer}
+          bounds={cloudBounds}
         />
       </div>
 
