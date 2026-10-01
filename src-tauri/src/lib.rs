@@ -107,11 +107,12 @@ fn start_runoptic_poll(app: AppHandle) {
         loop {
             let previous = {
                 let state = app.state::<RuntimeState>();
-                state
+                let snapshot = state
                     .snapshot
                     .lock()
                     .expect("Nimbi snapshot lock poisoned")
-                    .clone()
+                    .clone();
+                snapshot
             };
 
             let next = client.fetch(Some(&previous)).await;
