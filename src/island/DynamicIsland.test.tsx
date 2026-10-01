@@ -244,6 +244,30 @@ describe("DynamicIsland", () => {
     );
   });
 
+
+  it("shows compact Presence controls in expanded mode", () => {
+    const opacityChange = vi.fn();
+    const resetPlacement = vi.fn();
+
+    render(
+      <DynamicIsland
+        snapshot={NIMBI_FIXTURES.idle}
+        mode="expanded"
+        passiveOpacity={0.72}
+        onPassiveOpacityChange={opacityChange}
+        onResetPlacement={resetPlacement}
+      />,
+    );
+
+    const slider = screen.getByRole("slider", { name: "Nimbi opacity" });
+    expect(slider).toHaveValue("72");
+    fireEvent.change(slider, { target: { value: "45" } });
+    expect(opacityChange).toHaveBeenCalledWith(0.45);
+
+    fireEvent.click(screen.getByRole("button", { name: "Reset position" }));
+    expect(resetPlacement).toHaveBeenCalledTimes(1);
+  });
+
   it.each<IslandMode>([
     "hidden",
     "idle",
