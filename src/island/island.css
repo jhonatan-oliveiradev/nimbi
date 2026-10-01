@@ -428,6 +428,72 @@
   opacity: 1;
 }
 
+.nimbi-island[data-edge="floating"]:not([data-mode="idle"]):not([data-dragging="true"])[data-expansion="left"] {
+  translate: -100% -50%;
+}
+
+.nimbi-island[data-edge="floating"]:not([data-mode="idle"]):not([data-dragging="true"])[data-expansion="right"] {
+  translate: 0 -50%;
+}
+
+.nimbi-island[data-edge="floating"]:not([data-mode="idle"]):not([data-dragging="true"])[data-expansion="up"] {
+  translate: -50% -100%;
+}
+
+.nimbi-island[data-edge="floating"]:not([data-mode="idle"]):not([data-dragging="true"])[data-expansion="down"] {
+  translate: -50% 0;
+}
+
+.nimbi-island[data-edge="floating"]:not([data-mode="idle"]):not([data-dragging="true"])[data-expansion="left"] .nimbi-island__character {
+  top: 50%;
+  right: 8px;
+  bottom: auto;
+  left: auto;
+  transform: translateY(-50%);
+}
+
+.nimbi-island[data-edge="floating"]:not([data-mode="idle"]):not([data-dragging="true"])[data-expansion="right"] .nimbi-island__character {
+  top: 50%;
+  right: auto;
+  bottom: auto;
+  left: 8px;
+  transform: translateY(-50%);
+}
+
+.nimbi-island[data-edge="floating"]:not([data-mode="idle"]):not([data-dragging="true"])[data-expansion="up"] .nimbi-island__character {
+  top: auto;
+  bottom: 4px;
+  left: 50%;
+  transform: translateX(-50%);
+}
+
+.nimbi-island[data-edge="floating"]:not([data-mode="idle"]):not([data-dragging="true"])[data-expansion="down"] .nimbi-island__character {
+  top: 4px;
+  bottom: auto;
+  left: 50%;
+  transform: translateX(-50%);
+}
+
+.nimbi-island[data-edge="floating"][data-expansion="left"] .nimbi-island__compact-copy,
+.nimbi-island[data-edge="floating"][data-expansion="left"] .nimbi-island__details {
+  inset: 12px 66px 12px 14px;
+}
+
+.nimbi-island[data-edge="floating"][data-expansion="right"] .nimbi-island__compact-copy,
+.nimbi-island[data-edge="floating"][data-expansion="right"] .nimbi-island__details {
+  inset: 12px 14px 12px 66px;
+}
+
+.nimbi-island[data-edge="floating"][data-expansion="up"] .nimbi-island__compact-copy,
+.nimbi-island[data-edge="floating"][data-expansion="up"] .nimbi-island__details {
+  inset: 14px 18px 48px;
+}
+
+.nimbi-island[data-edge="floating"][data-expansion="down"] .nimbi-island__compact-copy,
+.nimbi-island[data-edge="floating"][data-expansion="down"] .nimbi-island__details {
+  inset: 48px 18px 14px;
+}
+
 .nimbi-preview {
   position: fixed;
   inset: 0;
