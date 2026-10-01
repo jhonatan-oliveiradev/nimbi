@@ -31,6 +31,8 @@ export function useNimbiSnapshot(enabled = true): NimbiSnapshot {
       } else {
         unlisten = stop;
       }
+    }).catch(() => {
+      if (!disposed && !receivedEvent) setSnapshot(OFFLINE);
     });
 
     void invoke<NimbiSnapshot>("get_nimbi_snapshot")
