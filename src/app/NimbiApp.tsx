@@ -1,4 +1,5 @@
 import { invoke } from "@tauri-apps/api/core";
+import { listen } from "@tauri-apps/api/event";
 import { useReducedMotion } from "motion/react";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { DynamicIsland } from "../island/DynamicIsland";
@@ -57,6 +58,7 @@ export function NimbiApp({
   const [machineMode, setMachineMode] = useState<IslandMode>(() =>
     defaultMode(currentSnapshot),
   );
+  const [desktopPointer, setDesktopPointer] = useState<{ x: number; y: number }>();
 
   useEffect(() => {
     machine.onTransition = (_from, next) => setMachineMode(next);
@@ -82,6 +84,27 @@ export function NimbiApp({
       interactive: renderedMode === "expanded",
     });
   }, [nativeRuntime, renderedMode]);
+
+  useEffect(() => {
+    if (!nativeRuntime) {
+      setDesktopPointer(undefined);
+      return;
+    }
+
+    let unlisten: (() => void) | undefined;
+    let disposed = false;
+    void listen<{ x: number; y: number }>("nimbi://cursor", (event) => {
+      if (!disposed) setDesktopPointer(event.payload);
+    }).then((stop) => {
+      if (disposed) stop();
+      else unlisten = stop;
+    }).catch(() => {});
+
+    return () => {
+      disposed = true;
+      unlisten?.();
+    };
+  }, [nativeRuntime]);
 
   useEffect(() => {
     if (!nativeRuntime || renderedMode !== "hidden") return;
@@ -116,6 +139,7 @@ export function NimbiApp({
       onBoundsChange={reportBounds}
       onPointerEnter={mode === undefined ? () => machine.pointerEnter() : undefined}
       onPointerLeave={mode === undefined ? () => machine.pointerLeave() : undefined}
+      pointer={desktopPointer}
     />
   );
 }
