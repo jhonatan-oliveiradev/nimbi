@@ -22,15 +22,11 @@
   user-select: none;
   transform-origin: top center;
   transition:
-    width 300ms cubic-bezier(.2,.8,.2,1),
+    width 280ms cubic-bezier(.2,.8,.2,1),
     height 300ms cubic-bezier(.2,.8,.2,1),
     border-radius 300ms cubic-bezier(.2,.8,.2,1),
     box-shadow 300ms ease;
   will-change: width, height;
-  transition:
-    width 260ms cubic-bezier(.2,.8,.2,1),
-    height 280ms cubic-bezier(.2,.8,.2,1),
-    border-radius 280ms cubic-bezier(.2,.8,.2,1);
 }
 
 .nimbi-island[data-mode="compact"] {
