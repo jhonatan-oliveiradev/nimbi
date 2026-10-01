@@ -1,7 +1,10 @@
+pub mod preferences;
 pub mod runoptic;
 pub mod state;
 pub mod window;
 
+#[cfg(test)]
+mod preferences_tests;
 #[cfg(test)]
 mod runoptic_tests;
 #[cfg(test)]
@@ -10,6 +13,7 @@ mod window_tests;
 use std::sync::atomic::Ordering;
 use std::time::Duration;
 
+use preferences::NimbiPreferences;
 use state::{NimbiActivity, NimbiSnapshot, RuntimeState};
 use tauri::{AppHandle, Emitter, Manager, State};
 
@@ -21,6 +25,44 @@ fn get_nimbi_snapshot(state: State<'_, RuntimeState>) -> NimbiSnapshot {
         .expect("Nimbi snapshot lock poisoned")
         .clone()
 }
+
+#[tauri::command]
+fn get_preferences(state: State<'_, RuntimeState>) -> NimbiPreferences {
+    state
+        .preferences
+        .lock()
+        .expect("Nimbi preferences lock poisoned")
+        .clone()
+}
+
+#[tauri::command]
+fn set_preferences(
+    preferences: NimbiPreferences,
+    app: AppHandle,
+    state: State<'_, RuntimeState>,
+) -> Result<NimbiPreferences, String> {
+    let normalized = preferences.normalized();
+
+    let path = state
+        .preferences_path
+        .lock()
+        .map_err(|_| "Nimbi preferences path lock poisoned".to_string())?
+        .clone();
+
+    if let Some(path) = path {
+        preferences::save(&path, &normalized).map_err(|error| error.to_string())?;
+    }
+
+    *state
+        .preferences
+        .lock()
+        .map_err(|_| "Nimbi preferences lock poisoned".to_string())? =
+        normalized.clone();
+
+    let _ = app.emit("nimbi://preferences", &normalized);
+    Ok(normalized)
+}
+
 
 #[tauri::command]
 fn set_visibility_hint(hidden: bool, state: State<'_, RuntimeState>) {
@@ -140,6 +182,8 @@ pub fn run() {
         .manage(RuntimeState::new())
         .invoke_handler(tauri::generate_handler![
             get_nimbi_snapshot,
+            get_preferences,
+            set_preferences,
             set_visibility_hint,
             set_collapsed,
             set_island_rect,
@@ -149,6 +193,20 @@ pub fn run() {
         .setup(|app| {
             let handle = app.handle().clone();
             let state = app.state::<RuntimeState>();
+
+            if let Ok(config_dir) = app.path().app_config_dir() {
+                let path = config_dir.join("preferences.json");
+                let loaded = preferences::load_or_default(&path);
+                *state
+                    .preferences
+                    .lock()
+                    .expect("Nimbi preferences lock poisoned") = loaded;
+                *state
+                    .preferences_path
+                    .lock()
+                    .expect("Nimbi preferences path lock poisoned") = Some(path);
+            }
+
             if let Some(win) = window::window(&handle) {
                 window::make_non_activating(&win);
             }
