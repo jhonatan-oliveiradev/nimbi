@@ -24,6 +24,8 @@ pub const PANEL_W: f64 = 640.0;
 pub const PANEL_H: f64 = 300.0;
 pub const STRIP_W: f64 = 220.0;
 pub const STRIP_H: f64 = 6.0;
+pub const DRAG_W: f64 = 76.0;
+pub const DRAG_H: f64 = 48.0;
 const HIT_MARGIN: f64 = 12.0;
 
 pub type MonitorKey = (String, i32, i32, u32, u32, u64);
@@ -154,6 +156,21 @@ impl Default for WindowGate {
     fn default() -> Self {
         Self::new()
     }
+}
+
+pub fn drag_surface_physical_size(scale: f64) -> (u32, u32) {
+    let scale = if scale.is_finite() && scale > 0.0 { scale } else { 1.0 };
+    (
+        (DRAG_W * scale).round().max(1.0) as u32,
+        (DRAG_H * scale).round().max(1.0) as u32,
+    )
+}
+
+pub fn size_window_for_drag(app: &AppHandle) {
+    let Some(win) = window(app) else { return };
+    let scale = win.scale_factor().unwrap_or(1.0);
+    let (width, height) = drag_surface_physical_size(scale);
+    let _ = win.set_size(PhysicalSize::new(width, height));
 }
 
 pub fn centered_top_geometry(monitor: MonitorGeometry, collapsed: bool) -> WindowGeometry {
