@@ -479,6 +479,35 @@
   pointer-events: none;
 }
 
+.nimbi-preview__placement-fixtures {
+  position: fixed;
+  right: 18px;
+  bottom: 60px;
+  left: 18px;
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 5px;
+  pointer-events: auto;
+}
+
+.nimbi-preview__placement-fixtures button {
+  padding: 5px 9px;
+  color: rgb(255 255 255 / 46%);
+  font-size: 9px;
+  background: rgb(5 5 7 / 58%);
+  border: 1px solid rgb(255 255 255 / 6%);
+  border-radius: 999px;
+  cursor: pointer;
+}
+
+.nimbi-preview__placement-fixtures button:hover,
+.nimbi-preview__placement-fixtures button:focus-visible {
+  color: #fff;
+  border-color: rgb(185 168 255 / 30%);
+  outline: none;
+}
+
 .nimbi-preview__controls {
   position: fixed;
   right: 18px;
