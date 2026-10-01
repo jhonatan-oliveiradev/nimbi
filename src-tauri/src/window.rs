@@ -62,6 +62,17 @@ pub struct ShellGeometry {
     pub orientation: ShellOrientation,
 }
 
+#[derive(Clone, Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ShellLayoutPayload {
+    pub anchor_x: f64,
+    pub anchor_y: f64,
+    pub orientation: ShellOrientation,
+    pub viewport_width: f64,
+    pub viewport_height: f64,
+    pub monitor_id: String,
+}
+
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct WindowGeometry {
     pub x: i32,
@@ -115,6 +126,7 @@ pub struct WindowGate {
     pub collapsed: AtomicBool,
     rect: Mutex<IslandRect>,
     ignoring: AtomicBool,
+    placement: Mutex<NimbiPlacement>,
 }
 
 impl WindowGate {
@@ -125,6 +137,11 @@ impl WindowGate {
             collapsed: AtomicBool::new(false),
             rect: Mutex::new(IslandRect::default()),
             ignoring: AtomicBool::new(false),
+            placement: Mutex::new(NimbiPlacement::Docked {
+                edge: NimbiEdge::Top,
+                offset: 0.5,
+                monitor_id: None,
+            }),
         }
     }
 
@@ -140,6 +157,20 @@ impl WindowGate {
 
     pub fn forget_ignore_state(&self) {
         self.ignoring.store(false, Ordering::Relaxed);
+    }
+
+    pub fn set_placement(&self, placement: NimbiPlacement) {
+        *self
+            .placement
+            .lock()
+            .expect("window placement lock poisoned") = placement;
+    }
+
+    pub fn placement(&self) -> NimbiPlacement {
+        self.placement
+            .lock()
+            .expect("window placement lock poisoned")
+            .clone()
     }
 
     fn wait_until_active(&self) {
@@ -326,11 +357,42 @@ pub fn window(app: &AppHandle) -> Option<WebviewWindow> {
     app.get_webview_window(WINDOW_LABEL)
 }
 
-fn target_monitor(app: &AppHandle) -> Option<Monitor> {
+fn placement_monitor_id(placement: &NimbiPlacement) -> Option<&str> {
+    match placement {
+        NimbiPlacement::Docked { monitor_id, .. }
+        | NimbiPlacement::Floating { monitor_id, .. } => monitor_id.as_deref(),
+    }
+}
+
+pub fn monitor_identity(monitor: &Monitor) -> String {
+    if let Some(name) = monitor.name().filter(|name| !name.trim().is_empty()) {
+        return name.clone();
+    }
+
+    let pos = monitor.position();
+    let size = monitor.size();
+    format!(
+        "display@{},{}:{}x{}",
+        pos.x, pos.y, size.width, size.height
+    )
+}
+
+fn target_monitor(app: &AppHandle, placement: &NimbiPlacement) -> Option<Monitor> {
+    let monitors = app.available_monitors().ok()?;
+
+    if let Some(requested) = placement_monitor_id(placement) {
+        if let Some(found) = monitors
+            .iter()
+            .find(|monitor| monitor_identity(monitor) == requested)
+        {
+            return Some(found.clone());
+        }
+    }
+
     app.primary_monitor()
         .ok()
         .flatten()
-        .or_else(|| app.available_monitors().ok()?.into_iter().next())
+        .or_else(|| monitors.into_iter().next())
 }
 
 fn monitor_geometry(monitor: &Monitor) -> MonitorGeometry {
@@ -345,28 +407,163 @@ fn monitor_geometry(monitor: &Monitor) -> MonitorGeometry {
     }
 }
 
-pub fn apply_geometry(app: &AppHandle, collapsed: bool) {
-    let Some(win) = window(app) else { return };
-    let Some(monitor) = target_monitor(app) else { return };
-    let geometry = centered_top_geometry(monitor_geometry(&monitor), collapsed);
+fn work_area_geometry(monitor: &Monitor) -> WorkAreaGeometry {
+    let work = monitor.work_area();
+    WorkAreaGeometry {
+        x: work.position.x,
+        y: work.position.y,
+        width: work.size.width,
+        height: work.size.height,
+        scale: monitor.scale_factor(),
+    }
+}
+
+fn resolved_shell(
+    app: &AppHandle,
+    placement: &NimbiPlacement,
+    collapsed: bool,
+) -> Option<(ShellGeometry, ShellLayoutPayload)> {
+    let monitor = target_monitor(app, placement)?;
+    let work = work_area_geometry(&monitor);
+    let geometry = adaptive_geometry(work, placement, collapsed);
+    let scale = work.scale.max(f64::EPSILON);
+    let payload = ShellLayoutPayload {
+        anchor_x: geometry.anchor_x / scale,
+        anchor_y: geometry.anchor_y / scale,
+        orientation: geometry.orientation,
+        viewport_width: work.width as f64 / scale,
+        viewport_height: work.height as f64 / scale,
+        monitor_id: monitor_identity(&monitor),
+    };
+    Some((geometry, payload))
+}
+
+pub fn shell_layout(
+    app: &AppHandle,
+    placement: &NimbiPlacement,
+    collapsed: bool,
+) -> Option<ShellLayoutPayload> {
+    resolved_shell(app, placement, collapsed).map(|(_, payload)| payload)
+}
+
+pub fn apply_geometry(
+    app: &AppHandle,
+    placement: &NimbiPlacement,
+    collapsed: bool,
+) -> Option<ShellLayoutPayload> {
+    let win = window(app)?;
+    let (resolved, payload) = resolved_shell(app, placement, collapsed)?;
+    let geometry = resolved.window;
 
     let _ = win.set_size(PhysicalSize::new(geometry.width, geometry.height));
     let _ = win.set_position(PhysicalPosition::new(geometry.x, geometry.y));
     let _ = win.set_size(PhysicalSize::new(geometry.width, geometry.height));
     let _ = win.set_always_on_top(true);
+    let _ = win.emit("nimbi://shell-layout", &payload);
+    Some(payload)
 }
 
-fn current_monitor_key(app: &AppHandle) -> Option<(i32, i32, u32, u32, u64)> {
-    let monitor = target_monitor(app)?;
-    let pos = monitor.position();
-    let size = monitor.size();
+fn current_monitor_key(
+    app: &AppHandle,
+    placement: &NimbiPlacement,
+) -> Option<(i32, i32, u32, u32, u64)> {
+    let monitor = target_monitor(app, placement)?;
+    let work = monitor.work_area();
     Some((
-        pos.x,
-        pos.y,
-        size.width,
-        size.height,
+        work.position.x,
+        work.position.y,
+        work.size.width,
+        work.size.height,
         monitor.scale_factor().to_bits(),
     ))
+}
+
+fn monitor_contains_point(monitor: &Monitor, x: f64, y: f64) -> bool {
+    let pos = monitor.position();
+    let size = monitor.size();
+    x >= pos.x as f64
+        && x <= pos.x as f64 + size.width as f64
+        && y >= pos.y as f64
+        && y <= pos.y as f64 + size.height as f64
+}
+
+fn monitor_for_point(app: &AppHandle, x: f64, y: f64) -> Option<Monitor> {
+    let monitors = app.available_monitors().ok()?;
+    monitors
+        .iter()
+        .find(|monitor| monitor_contains_point(monitor, x, y))
+        .cloned()
+        .or_else(|| app.primary_monitor().ok().flatten())
+        .or_else(|| monitors.into_iter().next())
+}
+
+pub fn placement_from_physical_point(
+    point: Point,
+    work: WorkAreaGeometry,
+    monitor_id: String,
+    threshold_logical: f64,
+) -> NimbiPlacement {
+    let right = work.x as f64 + work.width as f64;
+    let bottom = work.y as f64 + work.height as f64;
+    let threshold = threshold_logical.max(0.0) * work.scale.max(f64::EPSILON);
+
+    let distances = [
+        (NimbiEdge::Top, (point.y - work.y as f64).abs()),
+        (NimbiEdge::Right, (right - point.x).abs()),
+        (NimbiEdge::Bottom, (bottom - point.y).abs()),
+        (NimbiEdge::Left, (point.x - work.x as f64).abs()),
+    ];
+
+    let (edge, distance) = distances
+        .into_iter()
+        .min_by(|a, b| a.1.total_cmp(&b.1))
+        .expect("edge candidates are never empty");
+
+    if distance <= threshold {
+        let offset = match edge {
+            NimbiEdge::Top | NimbiEdge::Bottom => {
+                normalized((point.x - work.x as f64) / work.width.max(1) as f64)
+            }
+            NimbiEdge::Left | NimbiEdge::Right => {
+                normalized((point.y - work.y as f64) / work.height.max(1) as f64)
+            }
+        };
+        NimbiPlacement::Docked {
+            edge,
+            offset,
+            monitor_id: Some(monitor_id),
+        }
+    } else {
+        NimbiPlacement::Floating {
+            x: normalized((point.x - work.x as f64) / work.width.max(1) as f64),
+            y: normalized((point.y - work.y as f64) / work.height.max(1) as f64),
+            monitor_id: Some(monitor_id),
+        }
+    }
+}
+
+#[cfg(windows)]
+pub fn resolve_placement_from_cursor(
+    app: &AppHandle,
+    threshold_logical: f64,
+) -> Option<NimbiPlacement> {
+    let (x, y) = cursor_physical()?;
+    let monitor = monitor_for_point(app, x, y)?;
+    let work = work_area_geometry(&monitor);
+    Some(placement_from_physical_point(
+        Point { x, y },
+        work,
+        monitor_identity(&monitor),
+        threshold_logical,
+    ))
+}
+
+#[cfg(not(windows))]
+pub fn resolve_placement_from_cursor(
+    _app: &AppHandle,
+    _threshold_logical: f64,
+) -> Option<NimbiPlacement> {
+    None
 }
 
 #[cfg(windows)]
@@ -422,7 +619,7 @@ pub fn set_ignore_cursor(app: &AppHandle, ignore: bool) {
 #[cfg(windows)]
 pub fn spawn_cursor_poll(app: AppHandle, gate: Arc<WindowGate>) {
     std::thread::spawn(move || {
-        let mut last_monitor = current_monitor_key(&app);
+        let mut last_monitor = current_monitor_key(&app, &gate.placement());
         loop {
             gate.wait_until_active();
             let mut last = Point {
@@ -436,10 +633,15 @@ pub fn spawn_cursor_poll(app: AppHandle, gate: Arc<WindowGate>) {
                 ticks = ticks.wrapping_add(1);
 
                 if ticks.is_multiple_of(30) {
-                    let now = current_monitor_key(&app);
+                    let placement = gate.placement();
+                    let now = current_monitor_key(&app, &placement);
                     if now.is_some() && now != last_monitor {
                         last_monitor = now;
-                        apply_geometry(&app, gate.collapsed.load(Ordering::Relaxed));
+                        let _ = apply_geometry(
+                            &app,
+                            &placement,
+                            gate.collapsed.load(Ordering::Relaxed),
+                        );
                     }
                 }
 
