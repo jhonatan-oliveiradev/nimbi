@@ -174,6 +174,7 @@ fn reposition(app: AppHandle, state: State<'_, RuntimeState>) {
 fn begin_drag(app: AppHandle, state: State<'_, RuntimeState>) {
     state.dragging.store(true, Ordering::Relaxed);
     window::set_ignore_cursor(&app, false);
+    window::size_window_for_drag(&app);
 }
 
 #[tauri::command]
@@ -182,6 +183,7 @@ fn move_drag(app: AppHandle, state: State<'_, RuntimeState>) {
         return;
     }
     if let Some(point) = window::cursor_screen_point() {
+        window::size_window_for_drag(&app);
         window::move_window_centered_at(&app, point);
     }
 }
