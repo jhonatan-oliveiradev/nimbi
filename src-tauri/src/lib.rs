@@ -35,11 +35,12 @@ fn set_visibility_hint(hidden: bool, state: State<'_, RuntimeState>) {
 fn set_collapsed(collapsed: bool, app: AppHandle, state: State<'_, RuntimeState>) {
     state.window_gate.collapsed.store(collapsed, Ordering::Relaxed);
     window::apply_geometry(&app, collapsed);
+    let interactive = state.interactive.load(Ordering::Relaxed);
+    state
+        .window_gate
+        .set_active(cursor_poll_should_run(collapsed, interactive));
     if collapsed {
-        state.window_gate.set_active(false);
         window::set_ignore_cursor(&app, false);
-    } else {
-        state.window_gate.set_active(true);
     }
 }
 
@@ -65,13 +66,16 @@ fn set_interactive(interactive: bool, app: AppHandle, state: State<'_, RuntimeSt
         return;
     };
 
+    state.interactive.store(interactive, Ordering::Relaxed);
     window::set_activating(&win, interactive);
+    let collapsed = state.window_gate.collapsed.load(Ordering::Relaxed);
+    state
+        .window_gate
+        .set_active(cursor_poll_should_run(collapsed, interactive));
     if interactive {
-        state.window_gate.set_active(false);
         let _ = win.set_ignore_cursor_events(false);
         let _ = win.set_focus();
-    } else {
-        state.window_gate.set_active(true);
+    } else if !collapsed {
         state.window_gate.forget_ignore_state();
     }
 }
@@ -82,6 +86,10 @@ fn reposition(app: AppHandle, state: State<'_, RuntimeState>) {
         &app,
         state.window_gate.collapsed.load(Ordering::Relaxed),
     );
+}
+
+fn cursor_poll_should_run(collapsed: bool, interactive: bool) -> bool {
+    !collapsed && !interactive
 }
 
 fn polling_delay(hidden: bool, activity: &NimbiActivity) -> Duration {
@@ -160,6 +168,14 @@ pub fn run() {
 #[cfg(test)]
 mod runtime_tests {
     use super::*;
+
+    #[test]
+    fn cursor_poll_parks_when_collapsed_or_interactive() {
+        assert!(cursor_poll_should_run(false, false));
+        assert!(!cursor_poll_should_run(true, false));
+        assert!(!cursor_poll_should_run(false, true));
+        assert!(!cursor_poll_should_run(true, true));
+    }
 
     #[test]
     fn hidden_idle_polling_is_slow() {
