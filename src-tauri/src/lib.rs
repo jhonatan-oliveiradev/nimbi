@@ -219,6 +219,26 @@ fn polling_delay(hidden: bool, activity: &NimbiActivity) -> Duration {
     }
 }
 
+fn start_monitor_watch(app: AppHandle) {
+    tauri::async_runtime::spawn(async move {
+        let mut previous = window::monitor_topology_key(&window::monitor_work_areas(&app));
+
+        loop {
+            tokio::time::sleep(Duration::from_secs(1)).await;
+            let next = window::monitor_topology_key(&window::monitor_work_areas(&app));
+            if next == previous {
+                continue;
+            }
+            previous = next;
+
+            let state = app.state::<RuntimeState>();
+            if !state.dragging.load(Ordering::Relaxed) {
+                apply_current_geometry(&app, &state);
+            }
+        }
+    });
+}
+
 fn start_runoptic_poll(app: AppHandle) {
     tauri::async_runtime::spawn(async move {
         let client = runoptic::RunOpticClient::default();
@@ -286,6 +306,7 @@ pub fn run() {
             apply_current_geometry(&handle, &state);
             state.window_gate.set_active(true);
             window::spawn_cursor_poll(handle.clone(), state.window_gate.clone());
+            start_monitor_watch(handle.clone());
             start_runoptic_poll(handle);
             Ok(())
         })
