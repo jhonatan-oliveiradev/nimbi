@@ -25,10 +25,6 @@ fn get_nimbi_snapshot(state: State<'_, RuntimeState>) -> NimbiSnapshot {
 #[tauri::command]
 fn set_visibility_hint(hidden: bool, state: State<'_, RuntimeState>) {
     state.hidden.store(hidden, Ordering::Relaxed);
-    state.window_gate.set_active(!hidden);
-    if hidden {
-        state.window_gate.forget_ignore_state();
-    }
 }
 
 #[tauri::command]
