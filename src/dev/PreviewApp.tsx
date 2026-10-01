@@ -231,8 +231,9 @@ export function PreviewApp() {
           fixtureOnly
           placement={renderedPlacement}
           presence={presence}
-          viewport={{ width: hostRect.width, height: hostRect.height }}
+          viewport={viewport}
           dragging={dragging}
+          anchor={{ x: hostRect.anchorX, y: hostRect.anchorY }}
           onCharacterPointerDown={handleCloudPointerDown}
         />
       </div>
