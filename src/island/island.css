@@ -21,6 +21,10 @@
   cursor: default;
   user-select: none;
   transform-origin: top center;
+  transition:
+    width 260ms cubic-bezier(.2,.8,.2,1),
+    height 280ms cubic-bezier(.2,.8,.2,1),
+    border-radius 280ms cubic-bezier(.2,.8,.2,1);
 }
 
 .nimbi-island[data-mode="compact"] {
