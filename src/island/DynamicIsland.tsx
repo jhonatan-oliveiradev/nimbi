@@ -5,6 +5,7 @@ import type { NimbiSnapshot } from "../telemetry/contract";
 import {
   DEFAULT_PLACEMENT,
   DEFAULT_PRESENCE,
+  deriveAxisAlignment,
   deriveExpansionDirection,
   deriveOrientation,
   effectivePresence,
@@ -133,6 +134,10 @@ export function DynamicIsland({
     hovered,
   );
   const edge = placement.mode === "docked" ? placement.edge : "floating";
+  const floatingX =
+    placement.mode === "floating" ? deriveAxisAlignment(placement.x) : "center";
+  const floatingY =
+    placement.mode === "floating" ? deriveAxisAlignment(placement.y) : "center";
   const style = {
     "--nimbi-presence": String(presenceOpacity),
     ...(anchor
@@ -156,6 +161,8 @@ export function DynamicIsland({
       data-edge={edge}
       data-orientation={orientation}
       data-expansion={expansion}
+      data-float-x={floatingX}
+      data-float-y={floatingY}
       data-dragging={String(dragging)}
       className="nimbi-island"
       style={style}
