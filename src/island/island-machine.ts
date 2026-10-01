@@ -54,6 +54,10 @@ export class IslandMachine {
   toggleExpanded() {
     this.clearHideTimer();
 
+    if (this.mode === "attention" || this.mode === "hidden") {
+      return;
+    }
+
     if (this.mode === "expanded") {
       this.transition(this.passiveMode);
       return;
@@ -61,8 +65,8 @@ export class IslandMachine {
 
     if (this.mode === "idle" || this.mode === "compact") {
       this.passiveMode = this.mode;
+      this.transition("expanded");
     }
-    this.transition("expanded");
   }
 
   forceHidden() {
