@@ -15,3 +15,7 @@ jobs:
       - run: npm ci
       - run: npm run test:run
       - run: npm run build
+      - name: Lint DESIGN.md
+        run: npx -y -p @google/design.md designmd lint DESIGN.md
+      - name: Production dependency audit
+        run: npm audit --omit=dev
