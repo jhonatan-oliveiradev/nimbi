@@ -40,6 +40,18 @@ http://localhost:5173/dev/island-preview.html
 
 The preview uses the same React, SVG, state, and island components as the Tauri app. It provides fixtures for idle, thinking, working, needs-input, complete, error, and offline.
 
+### Placement & Presence
+
+Nimbi is not restricted to the top-center position. In the preview, drag the cloud itself:
+
+- top / bottom → horizontal island;
+- left / right → vertical reflow;
+- away from an edge → floating Nimbi.
+
+Edge snapping uses a 56 px logical magnetic zone. Placement is normalized so it can survive resolution and DPI changes.
+
+Click Nimbi while idle to open the compact Presence control. Passive character opacity can be adjusted from 20–100%; important semantic states automatically raise their minimum visibility, and needs-input stays fully visible.
+
 ## Native development
 
 RunOptic should be available on its normal loopback endpoint:
