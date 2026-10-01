@@ -3,6 +3,7 @@ import type { NimbiActivity } from "../telemetry/contract";
 export type NimbiEdge = "top" | "right" | "bottom" | "left";
 export type NimbiOrientation = "horizontal" | "vertical";
 export type NimbiExpansionDirection = "up" | "right" | "down" | "left";
+export type NimbiAxisAlignment = "start" | "center" | "end";
 
 export type NimbiPlacement =
   | {
@@ -102,6 +103,13 @@ export function deriveOrientation(
   return placement.x <= 0.22 || placement.x >= 0.78
     ? "vertical"
     : "horizontal";
+}
+
+export function deriveAxisAlignment(value: number): NimbiAxisAlignment {
+  const normalizedValue = clamp01(value);
+  if (normalizedValue <= 0.25) return "start";
+  if (normalizedValue >= 0.75) return "end";
+  return "center";
 }
 
 export function deriveExpansionDirection(
