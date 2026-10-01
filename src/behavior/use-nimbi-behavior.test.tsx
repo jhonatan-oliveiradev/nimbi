@@ -1,5 +1,6 @@
 import { act, renderHook } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
+import type { NimbiActivity } from "../telemetry/contract";
 import { useNimbiBehavior } from "./use-nimbi-behavior";
 
 afterEach(() => {
@@ -44,8 +45,9 @@ describe("useNimbiBehavior", () => {
   it("plays tap transient then restores the current baseline", () => {
     vi.useFakeTimers();
     const { result, rerender } = renderHook(
-      ({ activity }) => useNimbiBehavior({ activity, islandOpen: false }),
-      { initialProps: { activity: "thinking" as const } },
+      ({ activity }: { activity: NimbiActivity }) =>
+        useNimbiBehavior({ activity, islandOpen: false }),
+      { initialProps: { activity: "thinking" as NimbiActivity } },
     );
 
     act(() => result.current.onTap());
@@ -60,8 +62,9 @@ describe("useNimbiBehavior", () => {
   it("plays complete once per transition and restores baseline", () => {
     vi.useFakeTimers();
     const { result, rerender } = renderHook(
-      ({ activity }) => useNimbiBehavior({ activity, islandOpen: false }),
-      { initialProps: { activity: "working" as const } },
+      ({ activity }: { activity: NimbiActivity }) =>
+        useNimbiBehavior({ activity, islandOpen: false }),
+      { initialProps: { activity: "working" as NimbiActivity } },
     );
 
     rerender({ activity: "complete" as const });
