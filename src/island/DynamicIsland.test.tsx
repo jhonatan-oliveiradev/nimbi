@@ -205,4 +205,27 @@ describe("DynamicIsland", () => {
       "--nimbi-presence": "1",
     });
   });
+
+  it("exposes presence and position controls only in expanded mode", () => {
+    const onPresenceChange = vi.fn();
+    const onResetPlacement = vi.fn();
+
+    render(
+      <DynamicIsland
+        snapshot={NIMBI_FIXTURES.idle}
+        mode="expanded"
+        presence={{ idleOpacity: 0.72 }}
+        onPresenceChange={onPresenceChange}
+        onResetPlacement={onResetPlacement}
+      />,
+    );
+
+    fireEvent.change(screen.getByLabelText("Nimbi presence"), {
+      target: { value: "45" },
+    });
+    expect(onPresenceChange).toHaveBeenCalledWith(0.45);
+
+    fireEvent.click(screen.getByRole("button", { name: "Top center" }));
+    expect(onResetPlacement).toHaveBeenCalledTimes(1);
+  });
 });
