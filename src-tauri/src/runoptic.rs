@@ -140,12 +140,12 @@ pub fn derive_snapshot(
         raw.sessions
             .iter()
             .filter(|session| session.state == "waiting")
-            .filter(|session| nonempty(session.attention_reason.as_deref()).is_some()),
+            .filter(|session| session.attention_reason.as_deref().and_then(nonempty).is_some()),
     ) {
         return snapshot_from_session(
             session,
             NimbiActivity::NeedsInput,
-            nonempty(session.attention_reason.as_deref()).map(str::to_string),
+            session.attention_reason.as_deref().and_then(nonempty).map(str::to_string),
             raw.updated_at_ms,
         );
     }
@@ -153,7 +153,7 @@ pub fn derive_snapshot(
     if let Some(error_activity) = newest_activity(
         raw.activity
             .iter()
-            .filter(|activity| nonempty(activity.error.as_deref()).is_some()),
+            .filter(|activity| activity.error.as_deref().and_then(nonempty).is_some()),
     ) {
         let session = raw
             .sessions
