@@ -28,7 +28,7 @@ The foundation release reads normalized local telemetry from RunOptic. It does n
 Most character and island work does not require launching an unsigned Windows executable.
 
 ```powershell
-npm install
+npm ci
 npm run dev
 ```
 
@@ -51,7 +51,7 @@ http://127.0.0.1:48666/v1/telemetry/state
 Start Nimbi with the normal Tauri CLI:
 
 ```powershell
-npm install
+npm ci
 npm run tauri:dev
 ```
 
