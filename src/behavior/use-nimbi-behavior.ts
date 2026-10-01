@@ -27,8 +27,7 @@ export interface UseNimbiBehaviorOptions {
   reducedMotion: boolean;
 }
 
-export interface NimbiBehaviorLifecycle {
-  behavior: NimbiBehavior;
+export interface NimbiBehaviorEvents {
   onHoverStart(): void;
   onHoverEnd(): void;
   onTap(): void;
@@ -36,6 +35,10 @@ export interface NimbiBehaviorLifecycle {
   onDragging(): void;
   onRelease(): void;
   onDragCancel(): void;
+}
+
+export interface NimbiBehaviorLifecycle extends NimbiBehaviorEvents {
+  behavior: NimbiBehavior;
 }
 
 export function useNimbiBehavior({
