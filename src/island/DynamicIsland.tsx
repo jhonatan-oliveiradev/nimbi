@@ -350,7 +350,10 @@ export function DynamicIsland({
           ) : null}
 
           {mode === "expanded" ? (
-            <div className="nimbi-island__presence-controls">
+            <div
+              className="nimbi-island__presence-controls"
+              onClick={(event) => event.stopPropagation()}
+            >
               <label className="nimbi-island__opacity-control">
                 <span>Presence</span>
                 <input
