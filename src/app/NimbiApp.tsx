@@ -1,10 +1,17 @@
 import { invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
 import { useReducedMotion } from "motion/react";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState, type PointerEventHandler } from "react";
 import { DynamicIsland } from "../island/DynamicIsland";
 import { IslandMachine, type IslandMode } from "../island/island-machine";
 import type { NimbiSnapshot } from "../telemetry/contract";
+import {
+  DEFAULT_PLACEMENT,
+  DEFAULT_PRESENCE,
+  type NimbiPlacement,
+  type NimbiPresence,
+  type ViewportRect,
+} from "../placement/placement";
 import { NIMBI_FIXTURES } from "../telemetry/fixtures";
 import { useNimbiSnapshot } from "../telemetry/use-nimbi-snapshot";
 
@@ -14,6 +21,11 @@ export interface NimbiAppProps {
   fixtureOnly?: boolean;
   reducedMotion?: boolean;
   onToggle?: () => void;
+  placement?: NimbiPlacement;
+  presence?: NimbiPresence;
+  viewport?: ViewportRect;
+  dragging?: boolean;
+  onCharacterPointerDown?: PointerEventHandler<HTMLDivElement>;
 }
 
 function defaultMode(snapshot: NimbiSnapshot): IslandMode {
@@ -43,6 +55,11 @@ export function NimbiApp({
   fixtureOnly = false,
   reducedMotion = false,
   onToggle,
+  placement = DEFAULT_PLACEMENT,
+  presence = DEFAULT_PRESENCE,
+  viewport,
+  dragging = false,
+  onCharacterPointerDown,
 }: NimbiAppProps) {
   const nativeRuntime = snapshot === undefined && isTauriRuntime();
   const liveSnapshot = useNimbiSnapshot(nativeRuntime);
@@ -140,6 +157,16 @@ export function NimbiApp({
       onPointerEnter={mode === undefined ? () => machine.pointerEnter() : undefined}
       onPointerLeave={mode === undefined ? () => machine.pointerLeave() : undefined}
       pointer={desktopPointer}
+      placement={placement}
+      presence={presence}
+      viewport={
+        viewport ??
+        (typeof window !== "undefined"
+          ? { width: window.innerWidth, height: window.innerHeight }
+          : { width: 1200, height: 800 })
+      }
+      dragging={dragging}
+      onCharacterPointerDown={onCharacterPointerDown}
     />
   );
 }
