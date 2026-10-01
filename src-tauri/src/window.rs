@@ -275,6 +275,75 @@ pub fn monitor_for_point(
         })
 }
 
+pub fn placement_for_point(
+    monitor: &MonitorWorkArea,
+    point: Point,
+    previous: Option<&NimbiPlacement>,
+    threshold_logical: f64,
+) -> NimbiPlacement {
+    let threshold = threshold_logical.max(0.0) * monitor.scale;
+    let distances = [
+        (DockEdge::Top, (point.y - monitor.y as f64).abs()),
+        (
+            DockEdge::Right,
+            ((monitor.x + monitor.width as i32) as f64 - point.x).abs(),
+        ),
+        (
+            DockEdge::Bottom,
+            ((monitor.y + monitor.height as i32) as f64 - point.y).abs(),
+        ),
+        (DockEdge::Left, (point.x - monitor.x as f64).abs()),
+    ];
+
+    let nearest = distances
+        .iter()
+        .map(|(_, distance)| *distance)
+        .filter(|distance| *distance <= threshold)
+        .fold(f64::INFINITY, f64::min);
+
+    if nearest.is_finite() {
+        let mut tied: Vec<DockEdge> = distances
+            .iter()
+            .filter(|(_, distance)| (*distance - nearest).abs() < 0.0001)
+            .map(|(edge, _)| *edge)
+            .collect();
+
+        let previous_edge = match previous {
+            Some(NimbiPlacement::Docked { edge, .. }) => Some(*edge),
+            _ => None,
+        };
+        let edge = previous_edge
+            .filter(|edge| tied.contains(edge))
+            .or_else(|| {
+                tied.iter()
+                    .copied()
+                    .find(|edge| matches!(edge, DockEdge::Top | DockEdge::Bottom))
+            })
+            .unwrap_or_else(|| tied.remove(0));
+
+        let offset = match edge {
+            DockEdge::Top | DockEdge::Bottom => {
+                ((point.x - monitor.x as f64) / monitor.width as f64).clamp(0.0, 1.0)
+            }
+            DockEdge::Left | DockEdge::Right => {
+                ((point.y - monitor.y as f64) / monitor.height as f64).clamp(0.0, 1.0)
+            }
+        };
+
+        return NimbiPlacement::Docked {
+            monitor_id: monitor.id.clone(),
+            edge,
+            offset,
+        };
+    }
+
+    NimbiPlacement::Floating {
+        monitor_id: monitor.id.clone(),
+        x: ((point.x - monitor.x as f64) / monitor.width as f64).clamp(0.0, 1.0),
+        y: ((point.y - monitor.y as f64) / monitor.height as f64).clamp(0.0, 1.0),
+    }
+}
+
 fn distance_to_monitor(monitor: &MonitorWorkArea, point: Point) -> f64 {
     let left = monitor.x as f64;
     let right = (monitor.x + monitor.width as i32) as f64;
