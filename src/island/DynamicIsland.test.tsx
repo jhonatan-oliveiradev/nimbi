@@ -1,12 +1,24 @@
-import { fireEvent, render, screen } from "@testing-library/react";
-import { describe, expect, it, vi } from "vitest";
+import { act, fireEvent, render, screen } from "@testing-library/react";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { NIMBI_FIXTURES } from "../telemetry/fixtures";
 import type { NimbiPlacement, WorkArea } from "../placement/placement";
 import type { NimbiBehaviorEvents } from "../behavior/use-nimbi-behavior";
-import { DynamicIsland } from "./DynamicIsland";
+import {
+  CONTENT_ENTER_DELAY_MS,
+  CONTENT_EXIT_MS,
+  DynamicIsland,
+} from "./DynamicIsland";
 import type { IslandMode } from "./island-machine";
 
 describe("DynamicIsland", () => {
+  beforeEach(() => {
+    vi.useFakeTimers();
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
   const createBehaviorEvents = (): NimbiBehaviorEvents => ({
     onHoverStart: vi.fn(),
     onHoverEnd: vi.fn(),
@@ -317,6 +329,154 @@ describe("DynamicIsland", () => {
 
     fireEvent.click(screen.getByRole("button", { name: "Reset position" }));
     expect(resetPlacement).toHaveBeenCalledTimes(1);
+  });
+
+  it("keeps the avatar mounted while the shell opens and closes", () => {
+    const { rerender } = render(
+      <DynamicIsland
+        snapshot={NIMBI_FIXTURES.idle}
+        mode="idle"
+        reducedMotion={false}
+      />,
+    );
+    const avatar = screen.getByTestId("nimbi-avatar");
+
+    rerender(
+      <DynamicIsland
+        snapshot={NIMBI_FIXTURES.idle}
+        mode="expanded"
+        reducedMotion={false}
+      />,
+    );
+
+    expect(screen.getByTestId("nimbi-avatar")).toBe(avatar);
+
+    act(() => {
+      vi.advanceTimersByTime(CONTENT_ENTER_DELAY_MS);
+    });
+
+    rerender(
+      <DynamicIsland
+        snapshot={NIMBI_FIXTURES.idle}
+        mode="idle"
+        reducedMotion={false}
+      />,
+    );
+
+    expect(screen.getByTestId("nimbi-avatar")).toBe(avatar);
+
+    act(() => {
+      vi.advanceTimersByTime(CONTENT_EXIT_MS);
+    });
+
+    expect(screen.getByTestId("nimbi-avatar")).toBe(avatar);
+  });
+
+  it("expands the shell before expanded content enters", () => {
+    const { rerender } = render(
+      <DynamicIsland
+        snapshot={NIMBI_FIXTURES.idle}
+        mode="idle"
+        reducedMotion={false}
+      />,
+    );
+
+    rerender(
+      <DynamicIsland
+        snapshot={NIMBI_FIXTURES.idle}
+        mode="expanded"
+        reducedMotion={false}
+      />,
+    );
+
+    const island = screen.getByTestId("nimbi-island");
+    expect(island).toHaveAttribute("data-mode", "expanded");
+    expect(island).toHaveAttribute("data-content-phase", "hidden");
+    expect(screen.queryByTestId("nimbi-details")).toBeNull();
+
+    act(() => {
+      vi.advanceTimersByTime(CONTENT_ENTER_DELAY_MS - 1);
+    });
+    expect(screen.queryByTestId("nimbi-details")).toBeNull();
+
+    act(() => {
+      vi.advanceTimersByTime(1);
+    });
+    expect(island).toHaveAttribute("data-content-phase", "visible");
+    expect(screen.getByTestId("nimbi-details")).toBeInTheDocument();
+  });
+
+  it("exits content before the shell contracts", () => {
+    const { rerender } = render(
+      <DynamicIsland
+        snapshot={NIMBI_FIXTURES.idle}
+        mode="expanded"
+        reducedMotion={false}
+      />,
+    );
+
+    const island = screen.getByTestId("nimbi-island");
+    expect(island).toHaveAttribute("data-mode", "expanded");
+    expect(screen.getByTestId("nimbi-details")).toBeInTheDocument();
+
+    rerender(
+      <DynamicIsland
+        snapshot={NIMBI_FIXTURES.idle}
+        mode="idle"
+        reducedMotion={false}
+      />,
+    );
+
+    expect(island).toHaveAttribute("data-mode", "expanded");
+    expect(island).toHaveAttribute("data-content-phase", "exiting");
+    expect(screen.getByTestId("nimbi-details")).toBeInTheDocument();
+
+    act(() => {
+      vi.advanceTimersByTime(CONTENT_EXIT_MS - 1);
+    });
+    expect(island).toHaveAttribute("data-mode", "expanded");
+
+    act(() => {
+      vi.advanceTimersByTime(1);
+    });
+    expect(island).toHaveAttribute("data-mode", "idle");
+    expect(island).toHaveAttribute("data-content-phase", "hidden");
+    expect(screen.queryByTestId("nimbi-details")).toBeNull();
+  });
+
+  it("skips staged content delays when reduced motion is enabled", () => {
+    const { rerender } = render(
+      <DynamicIsland
+        snapshot={NIMBI_FIXTURES.idle}
+        mode="idle"
+        reducedMotion
+      />,
+    );
+
+    rerender(
+      <DynamicIsland
+        snapshot={NIMBI_FIXTURES.idle}
+        mode="expanded"
+        reducedMotion
+      />,
+    );
+
+    const island = screen.getByTestId("nimbi-island");
+    expect(island).toHaveAttribute("data-mode", "expanded");
+    expect(island).toHaveAttribute("data-content-phase", "visible");
+    expect(screen.getByTestId("nimbi-details")).toBeInTheDocument();
+
+    rerender(
+      <DynamicIsland
+        snapshot={NIMBI_FIXTURES.idle}
+        mode="idle"
+        reducedMotion
+      />,
+    );
+
+    expect(island).toHaveAttribute("data-mode", "idle");
+    expect(island).toHaveAttribute("data-content-phase", "hidden");
+    expect(screen.queryByTestId("nimbi-details")).toBeNull();
   });
 
   it.each<IslandMode>([
