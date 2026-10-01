@@ -1,6 +1,7 @@
 import { fireEvent, render, screen } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 import { NIMBI_FIXTURES } from "../telemetry/fixtures";
+import type { NimbiPlacement } from "../placement/placement";
 import { DynamicIsland } from "./DynamicIsland";
 import type { IslandMode } from "./island-machine";
 
@@ -170,5 +171,38 @@ describe("DynamicIsland", () => {
       "data-mode",
       mode,
     );
+  });
+  it("adapts orientation to the dock edge without rotating content", () => {
+    const placement: NimbiPlacement = {
+      mode: "docked",
+      edge: "right",
+      offset: 0.5,
+    };
+    render(
+      <DynamicIsland
+        snapshot={NIMBI_FIXTURES.working}
+        mode="compact"
+        placement={placement}
+        viewport={{ width: 1200, height: 800 }}
+      />,
+    );
+
+    const island = screen.getByTestId("nimbi-island");
+    expect(island).toHaveAttribute("data-orientation", "vertical");
+    expect(island).toHaveAttribute("data-expansion", "left");
+  });
+
+  it("keeps needs-input at full presence even with a low idle opacity", () => {
+    render(
+      <DynamicIsland
+        snapshot={NIMBI_FIXTURES["needs-input"]}
+        mode="attention"
+        presence={{ idleOpacity: 0.25 }}
+      />,
+    );
+
+    expect(screen.getByTestId("nimbi-island")).toHaveStyle({
+      "--nimbi-presence": "1",
+    });
   });
 });
