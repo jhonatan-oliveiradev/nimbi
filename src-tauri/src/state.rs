@@ -79,6 +79,7 @@ use crate::window::WindowGate;
 pub struct RuntimeState {
     pub snapshot: Mutex<NimbiSnapshot>,
     pub hidden: AtomicBool,
+    pub interactive: AtomicBool,
     pub window_gate: Arc<WindowGate>,
 }
 
@@ -87,6 +88,7 @@ impl RuntimeState {
         Self {
             snapshot: Mutex::new(NimbiSnapshot::offline()),
             hidden: AtomicBool::new(false),
+            interactive: AtomicBool::new(false),
             window_gate: Arc::new(WindowGate::new()),
         }
     }
