@@ -164,6 +164,10 @@ export function DynamicIsland({
     workArea,
     onPreview: onPlacementPreview,
     onCommit: onPlacementCommit,
+    onDragStart: onNativeDragStart,
+    onDragMove: onNativeDragMove,
+    onDragEnd: onNativeDragEnd,
+    onDragCancel: onNativeDragCancel,
   });
   const activePlacement = drag.dragging ? drag.previewPlacement : placement;
   const orientation = orientationForPlacement(activePlacement);
@@ -221,18 +225,14 @@ export function DynamicIsland({
     event.stopPropagation();
     event.currentTarget.setPointerCapture?.(event.pointerId);
     drag.begin(pointFromEvent(event));
-    onNativeDragStart?.();
   };
 
   const handleCharacterPointerMove = (event: ReactPointerEvent<HTMLDivElement>) => {
     drag.move(pointFromEvent(event));
-    if (drag.dragging) onNativeDragMove?.();
   };
 
   const handleCharacterPointerUp = (event: ReactPointerEvent<HTMLDivElement>) => {
-    const wasDragging = drag.dragging;
     drag.end(pointFromEvent(event));
-    if (wasDragging) onNativeDragEnd?.();
     if (event.currentTarget.hasPointerCapture?.(event.pointerId)) {
       event.currentTarget.releasePointerCapture?.(event.pointerId);
     }
@@ -289,10 +289,7 @@ export function DynamicIsland({
         onPointerDown={handleCharacterPointerDown}
         onPointerMove={handleCharacterPointerMove}
         onPointerUp={handleCharacterPointerUp}
-        onPointerCancel={() => {
-          drag.cancel();
-          onNativeDragCancel?.();
-        }}
+        onPointerCancel={() => drag.cancel()}
       >
         <NimbiCloud
           activity={snapshot.activity}
