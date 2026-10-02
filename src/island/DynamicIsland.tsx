@@ -47,6 +47,7 @@ export interface DynamicIslandProps {
   snapshot: NimbiSnapshot;
   mode: IslandMode;
   onToggle?: () => void;
+  onCharacterActivate?: () => void;
   behavior?: NimbiBehavior;
   behaviorEvents?: NimbiBehaviorEvents;
   fixtureOnly?: boolean;
@@ -176,6 +177,7 @@ export function DynamicIsland({
   snapshot,
   mode,
   onToggle,
+  onCharacterActivate,
   behavior,
   behaviorEvents,
   fixtureOnly = false,
@@ -426,6 +428,13 @@ export function DynamicIsland({
     if (!wasDragging) behaviorEvents?.onDragCancel();
   };
 
+  const handleCharacterClick = (event: ReactPointerEvent<HTMLDivElement>) => {
+    event.stopPropagation();
+    if (drag.consumeSuppressedClick()) return;
+    behaviorEvents?.onTap();
+    onCharacterActivate?.();
+  };
+
   const handleClick = () => {
     if (drag.consumeSuppressedClick()) return;
     behaviorEvents?.onTap();
@@ -488,6 +497,7 @@ export function DynamicIsland({
         onPointerMove={handleCharacterPointerMove}
         onPointerUp={handleCharacterPointerUp}
         onPointerCancel={handleCharacterPointerCancel}
+        onClick={handleCharacterClick}
       >
         <NimbiAvatar
           behavior={resolvedBehavior}
