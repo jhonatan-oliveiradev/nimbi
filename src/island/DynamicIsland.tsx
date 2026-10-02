@@ -107,11 +107,11 @@ function placementStyle(
       case "top":
         return { top: 0, left: percent, right: "auto", bottom: "auto", translate: "-50% 0" };
       case "bottom":
-        return { top: "auto", left: percent, right: "auto", bottom: 0, translate: "-50% 0" };
+        return { top: "100%", left: percent, right: "auto", bottom: "auto", translate: "-50% -100%" };
       case "left":
         return { top: percent, left: 0, right: "auto", bottom: "auto", translate: "0 -50%" };
       case "right":
-        return { top: percent, left: "auto", right: 0, bottom: "auto", translate: "0 -50%" };
+        return { top: percent, left: "100%", right: "auto", bottom: "auto", translate: "-100% -50%" };
     }
   }
 
@@ -398,6 +398,7 @@ export function DynamicIsland({
       data-edge={activePlacement.mode === "docked" ? activePlacement.edge : "floating"}
       data-expansion={direction}
       data-dragging={String(drag.dragging)}
+      data-dock-target={drag.dockCandidate ?? "none"}
       data-behavior={resolvedBehavior}
       data-reduced-motion={String(reducedMotion)}
       className="nimbi-island"
