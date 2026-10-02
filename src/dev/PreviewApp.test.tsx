@@ -24,6 +24,53 @@ describe("PreviewApp", () => {
     );
   });
 
+  it("previews the ambient prompt flow through Cloudee", async () => {
+    render(<PreviewApp />);
+
+    fireEvent.click(screen.getByTestId("nimbi-character"));
+    const input = await screen.findByRole("textbox", { name: "Ask Nimbi" });
+    fireEvent.change(input, { target: { value: "check the PING build" } });
+    fireEvent.keyDown(input, { key: "Enter" });
+
+    expect(await screen.findByText("Preview action accepted.")).toBeInTheDocument();
+  });
+
+  it("previews contextual needs-input replies", async () => {
+    render(<PreviewApp />);
+
+    fireEvent.click(screen.getByRole("button", { name: /needs-input/i }));
+
+    expect(
+      await screen.findByRole("textbox", { name: "Reply to Claude" }),
+    ).toBeInTheDocument();
+  });
+
+  it("previews an unavailable NX Agent with retry UI", async () => {
+    render(<PreviewApp />);
+
+    fireEvent.click(screen.getByRole("button", { name: "Action error" }));
+    fireEvent.click(screen.getByTestId("nimbi-character"));
+    const input = await screen.findByRole("textbox", { name: "Ask Nimbi" });
+    fireEvent.change(input, { target: { value: "check build" } });
+    fireEvent.keyDown(input, { key: "Enter" });
+
+    expect(
+      await screen.findByText("Preview NX Agent unavailable"),
+    ).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Retry" })).toBeInTheDocument();
+  });
+
+  it("previews reduced motion deterministically", () => {
+    render(<PreviewApp />);
+
+    fireEvent.click(screen.getByRole("button", { name: "Reduced motion" }));
+
+    expect(screen.getByTestId("nimbi-island")).toHaveAttribute(
+      "data-reduced-motion",
+      "true",
+    );
+  });
+
   it("offers deterministic placement fixtures for visual review", () => {
     render(<PreviewApp />);
 

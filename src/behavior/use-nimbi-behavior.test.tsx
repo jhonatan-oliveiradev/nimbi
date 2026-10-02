@@ -1,5 +1,6 @@
 import { act, renderHook } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import type { ActionUiState } from "../actions/contract";
 import type { NimbiActivity } from "../telemetry/contract";
 import {
   COMPLETE_REACTION_MS,
@@ -127,6 +128,64 @@ describe("useNimbiBehavior", () => {
     });
 
     expect(result.current.behavior).toBe("thinking");
+  });
+
+  it("maps action composition and sending into companion behavior", () => {
+    const { result, rerender } = renderHook(
+      ({ actionStatus }) =>
+        useNimbiBehavior({
+          activity: "idle",
+          islandOpen: true,
+          reducedMotion: false,
+          actionStatus,
+        }),
+      { initialProps: { actionStatus: "composing" as ActionUiState["status"] } },
+    );
+
+    expect(result.current.behavior).toBe("listening");
+
+    rerender({ actionStatus: "sending" });
+    expect(result.current.behavior).toBe("thinking");
+
+    rerender({ actionStatus: "error" });
+    expect(result.current.behavior).toBe("error");
+  });
+
+  it("keeps real attention above composing but action transport error above attention", () => {
+    const { result, rerender } = renderHook(
+      ({ actionStatus }) =>
+        useNimbiBehavior({
+          activity: "needs-input",
+          islandOpen: true,
+          reducedMotion: false,
+          actionStatus,
+        }),
+      { initialProps: { actionStatus: "composing" as ActionUiState["status"] } },
+    );
+
+    expect(result.current.behavior).toBe("needs-input");
+
+    rerender({ actionStatus: "error" });
+    expect(result.current.behavior).toBe("error");
+  });
+
+  it("uses a brief complete reaction for a short action response", () => {
+    const { result, rerender } = renderHook(
+      ({ actionStatus }) =>
+        useNimbiBehavior({
+          activity: "idle",
+          islandOpen: true,
+          reducedMotion: false,
+          actionStatus,
+        }),
+      { initialProps: { actionStatus: "sending" as ActionUiState["status"] } },
+    );
+
+    rerender({ actionStatus: "response" });
+    expect(result.current.behavior).toBe("complete");
+
+    act(() => vi.advanceTimersByTime(COMPLETE_REACTION_MS));
+    expect(result.current.behavior).toBe("listening");
   });
 
   it("keeps semantic priority unchanged under reduced motion", () => {

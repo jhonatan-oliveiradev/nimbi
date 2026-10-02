@@ -75,12 +75,14 @@ use std::path::PathBuf;
 use std::sync::atomic::AtomicBool;
 use std::sync::{Arc, Mutex};
 
+use crate::nx_agent::NxAgentClient;
 use crate::preferences::{
     default_preferences_path, load_preferences_from, PreferencesV1,
 };
 use crate::window::WindowGate;
 
 pub struct RuntimeState {
+    pub nx_agent: NxAgentClient,
     pub snapshot: Mutex<NimbiSnapshot>,
     pub hidden: AtomicBool,
     pub interactive: AtomicBool,
@@ -95,6 +97,7 @@ impl RuntimeState {
         let preferences_path = default_preferences_path();
         let preferences = load_preferences_from(&preferences_path);
         Self {
+            nx_agent: NxAgentClient::default(),
             snapshot: Mutex::new(NimbiSnapshot::offline()),
             hidden: AtomicBool::new(false),
             interactive: AtomicBool::new(false),
