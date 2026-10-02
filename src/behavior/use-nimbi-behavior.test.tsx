@@ -1,5 +1,6 @@
 import { act, renderHook } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import type { ActionUiState } from "../actions/contract";
 import type { NimbiActivity } from "../telemetry/contract";
 import {
   COMPLETE_REACTION_MS,
@@ -138,15 +139,15 @@ describe("useNimbiBehavior", () => {
           reducedMotion: false,
           actionStatus,
         }),
-      { initialProps: { actionStatus: "composing" as const } },
+      { initialProps: { actionStatus: "composing" as ActionUiState["status"] } },
     );
 
     expect(result.current.behavior).toBe("listening");
 
-    rerender({ actionStatus: "sending" as const });
+    rerender({ actionStatus: "sending" });
     expect(result.current.behavior).toBe("thinking");
 
-    rerender({ actionStatus: "error" as const });
+    rerender({ actionStatus: "error" });
     expect(result.current.behavior).toBe("error");
   });
 
@@ -164,7 +165,7 @@ describe("useNimbiBehavior", () => {
 
     expect(result.current.behavior).toBe("needs-input");
 
-    rerender({ actionStatus: "error" as const });
+    rerender({ actionStatus: "error" });
     expect(result.current.behavior).toBe("error");
   });
 
@@ -177,10 +178,10 @@ describe("useNimbiBehavior", () => {
           reducedMotion: false,
           actionStatus,
         }),
-      { initialProps: { actionStatus: "sending" as const } },
+      { initialProps: { actionStatus: "sending" as ActionUiState["status"] } },
     );
 
-    rerender({ actionStatus: "response" as const });
+    rerender({ actionStatus: "response" });
     expect(result.current.behavior).toBe("complete");
 
     act(() => vi.advanceTimersByTime(COMPLETE_REACTION_MS));
