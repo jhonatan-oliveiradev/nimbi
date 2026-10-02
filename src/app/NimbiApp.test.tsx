@@ -199,6 +199,39 @@ describe("NimbiApp", () => {
     );
   });
 
+
+  it("keeps a failed action draft available when the window loses focus", async () => {
+    const actionSubmit = vi.fn().mockRejectedValue({
+      code: "unavailable",
+      message: "NX Agent is unavailable",
+    });
+    render(
+      <NimbiApp
+        snapshot={NIMBI_FIXTURES.idle}
+        reducedMotion
+        actionSubmit={actionSubmit}
+      />,
+    );
+
+    fireEvent.click(screen.getByTestId("nimbi-character"));
+    const input = screen.getByRole("textbox", { name: "Ask Nimbi" });
+    fireEvent.change(input, { target: { value: "check build" } });
+    fireEvent.keyDown(input, { key: "Enter" });
+
+    expect(
+      await screen.findByText("NX Agent is unavailable"),
+    ).toBeInTheDocument();
+    expect(screen.getByDisplayValue("check build")).toBeInTheDocument();
+
+    act(() => {
+      window.dispatchEvent(new Event("blur"));
+    });
+
+    expect(screen.getByText("NX Agent is unavailable")).toBeInTheDocument();
+    expect(screen.getByDisplayValue("check build")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Retry" })).toBeInTheDocument();
+  });
+
   it("restores native passive interaction after closing the composer", async () => {
     (window as Window & { __TAURI_INTERNALS__?: unknown }).__TAURI_INTERNALS__ = {};
     render(
