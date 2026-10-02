@@ -1,8 +1,12 @@
 import { act, renderHook, waitFor } from "@testing-library/react";
-import { describe, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { NIMBI_FIXTURES } from "../telemetry/fixtures";
 import type { NimbiActionRequest, NimbiActionResult } from "./contract";
-import { useNimbiActions } from "./use-nimbi-actions";
+import { ACTION_RESPONSE_TTL_MS, useNimbiActions } from "./use-nimbi-actions";
+
+afterEach(() => {
+  vi.useRealTimers();
+});
 
 describe("useNimbiActions", () => {
   it("opens a general composer and submits a prompt", async () => {
@@ -190,6 +194,35 @@ describe("useNimbiActions", () => {
     });
 
     expect(submit).toHaveBeenCalledWith({ type: "prompt", text: "hello" });
+  });
+
+  it("dismisses a short response after the ephemeral response TTL", async () => {
+    vi.useFakeTimers();
+    const submit = vi.fn().mockResolvedValue({
+      accepted: true,
+      response: "Done.",
+    });
+    const { result } = renderHook(() =>
+      useNimbiActions({ snapshot: NIMBI_FIXTURES.idle, submit }),
+    );
+
+    act(() => {
+      result.current.open("general");
+      result.current.setDraft("work");
+    });
+    await act(async () => {
+      await result.current.submit();
+    });
+    expect(result.current.state).toEqual({
+      status: "response",
+      text: "Done.",
+    });
+
+    act(() => {
+      vi.advanceTimersByTime(ACTION_RESPONSE_TTL_MS);
+    });
+
+    expect(result.current.state).toEqual({ status: "idle" });
   });
 
   it("clears an ephemeral response when real work arrives", async () => {
