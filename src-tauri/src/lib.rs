@@ -29,6 +29,15 @@ use tauri::{
 };
 
 #[tauri::command]
+async fn submit_nimbi_action(
+    request: nx_agent::NimbiActionRequest,
+    state: State<'_, RuntimeState>,
+) -> Result<nx_agent::NimbiActionResult, nx_agent::ActionError> {
+    let client = state.nx_agent.clone();
+    client.submit(&request).await
+}
+
+#[tauri::command]
 fn get_nimbi_snapshot(state: State<'_, RuntimeState>) -> NimbiSnapshot {
     state
         .snapshot
@@ -357,6 +366,7 @@ pub fn run() {
     tauri::Builder::default()
         .manage(RuntimeState::new())
         .invoke_handler(tauri::generate_handler![
+            submit_nimbi_action,
             get_nimbi_snapshot,
             get_preferences,
             save_placement,
