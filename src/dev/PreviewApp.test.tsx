@@ -28,7 +28,7 @@ describe("PreviewApp", () => {
     render(<PreviewApp />);
 
     fireEvent.click(screen.getByTestId("nimbi-character"));
-    const input = screen.getByRole("textbox", { name: "Ask Nimbi" });
+    const input = await screen.findByRole("textbox", { name: "Ask Nimbi" });
     fireEvent.change(input, { target: { value: "check the PING build" } });
     fireEvent.keyDown(input, { key: "Enter" });
 
@@ -50,7 +50,7 @@ describe("PreviewApp", () => {
 
     fireEvent.click(screen.getByRole("button", { name: "Action error" }));
     fireEvent.click(screen.getByTestId("nimbi-character"));
-    const input = screen.getByRole("textbox", { name: "Ask Nimbi" });
+    const input = await screen.findByRole("textbox", { name: "Ask Nimbi" });
     fireEvent.change(input, { target: { value: "check build" } });
     fireEvent.keyDown(input, { key: "Enter" });
 
