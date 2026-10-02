@@ -1,7 +1,8 @@
 use std::time::Duration;
 
 use crate::nx_agent::{
-    ActionErrorCode, NimbiActionRequest, NxAgentClient, ACTION_TIMEOUT_MS, MAX_ACTION_TEXT_LENGTH,
+    ActionErrorCode, NimbiActionRequest, NxAgentClient, ACTION_TIMEOUT_MS,
+    DEFAULT_NX_AGENT_ACTION_PATH, DEFAULT_NX_AGENT_BASE_URL, MAX_ACTION_TEXT_LENGTH,
 };
 
 async fn fixture_server(
@@ -167,4 +168,53 @@ async fn slow_response_times_out_at_configured_limit() {
         .unwrap_err();
 
     assert_eq!(error.code, ActionErrorCode::Timeout);
+}
+
+#[test]
+fn production_defaults_point_to_the_local_nx_agent_daemon() {
+    assert_eq!(DEFAULT_NX_AGENT_BASE_URL, "http://127.0.0.1:4317");
+    assert_eq!(DEFAULT_NX_AGENT_ACTION_PATH, "/v1/actions");
+}
+
+#[tokio::test]
+async fn optional_daemon_token_is_sent_as_bearer_auth() {
+    let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
+    let addr = listener.local_addr().unwrap();
+    let (seen_tx, seen_rx) = tokio::sync::oneshot::channel();
+
+    tokio::spawn(async move {
+        let (mut stream, _) = listener.accept().await.unwrap();
+        let mut request = vec![0_u8; 8192];
+        let read = tokio::io::AsyncReadExt::read(&mut stream, &mut request)
+            .await
+            .unwrap();
+        let raw = String::from_utf8_lossy(&request[..read]).to_string();
+        let _ = seen_tx.send(raw);
+
+        let body = r#"{"accepted":true,"response":"Started","sessionId":"s1"}"#;
+        let response = format!(
+            "HTTP/1.1 200 OK\r\nContent-Type: application/json\r\nContent-Length: {}\r\nConnection: close\r\n\r\n{body}",
+            body.len()
+        );
+        tokio::io::AsyncWriteExt::write_all(&mut stream, response.as_bytes())
+            .await
+            .unwrap();
+    });
+
+    let client = NxAgentClient::with_endpoint_and_token(
+        format!("http://{addr}"),
+        "/v1/actions",
+        Some("local-secret".into()),
+    )
+    .unwrap();
+
+    client
+        .submit(&NimbiActionRequest::Prompt {
+            text: "check build".into(),
+        })
+        .await
+        .unwrap();
+
+    let raw = seen_rx.await.unwrap().to_ascii_lowercase();
+    assert!(raw.contains("authorization: bearer local-secret"));
 }
