@@ -20,7 +20,7 @@ export function routeAction(
 ): RouteActionResult {
   const normalized = normalizedText(text);
   if (!normalized) return { ok: false, code: "empty" };
-  if (normalized.length > MAX_ACTION_TEXT_LENGTH) {
+  if (Array.from(normalized).length > MAX_ACTION_TEXT_LENGTH) {
     return { ok: false, code: "too-long" };
   }
 
