@@ -174,6 +174,31 @@ describe("NimbiApp", () => {
     );
   });
 
+  it("keeps a needs-input draft when the window loses focus", async () => {
+    render(
+      <NimbiApp
+        snapshot={NIMBI_FIXTURES["needs-input"]}
+        reducedMotion
+        actionSubmit={vi.fn().mockResolvedValue({ accepted: true })}
+      />,
+    );
+
+    const input = await screen.findByRole("textbox", { name: "Reply to Claude" });
+    fireEvent.focus(input);
+    fireEvent.change(input, { target: { value: "yes, continue" } });
+    expect(input).toHaveValue("yes, continue");
+
+    act(() => {
+      window.dispatchEvent(new Event("blur"));
+    });
+
+    await waitFor(() =>
+      expect(screen.getByRole("textbox", { name: "Reply to Claude" })).toHaveValue(
+        "yes, continue",
+      ),
+    );
+  });
+
   it("restores native passive interaction after closing the composer", async () => {
     (window as Window & { __TAURI_INTERNALS__?: unknown }).__TAURI_INTERNALS__ = {};
     render(
