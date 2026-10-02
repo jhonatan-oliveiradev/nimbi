@@ -220,11 +220,22 @@ export function NimbiApp({
   }, [actions.close, restoreSemanticMode]);
 
   useEffect(() => {
-    if (!actionActive || currentSnapshot.activity === "needs-input") return;
+    if (
+      !actionActive ||
+      currentSnapshot.activity === "needs-input" ||
+      actions.state.status === "error"
+    ) {
+      return;
+    }
     const closeOnWindowBlur = () => handleActionClose();
     window.addEventListener("blur", closeOnWindowBlur);
     return () => window.removeEventListener("blur", closeOnWindowBlur);
-  }, [actionActive, currentSnapshot.activity, handleActionClose]);
+  }, [
+    actionActive,
+    actions.state.status,
+    currentSnapshot.activity,
+    handleActionClose,
+  ]);
 
   const handleToggle = () => {
     if (onToggle) {
