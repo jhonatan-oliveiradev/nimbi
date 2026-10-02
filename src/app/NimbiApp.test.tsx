@@ -1,6 +1,6 @@
-import { fireEvent, render, screen } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { NIMBI_FIXTURES } from "../telemetry/fixtures";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { NimbiApp } from "./NimbiApp";
 
 describe("NimbiApp", () => {
@@ -20,6 +20,74 @@ describe("NimbiApp", () => {
 
     fireEvent.pointerEnter(island);
     expect(island).toHaveAttribute("data-behavior", "notice");
+  });
+
+  it("opens the general composer when idle Nimbi is clicked", () => {
+    render(<NimbiApp snapshot={NIMBI_FIXTURES.idle} reducedMotion />);
+
+    fireEvent.click(screen.getByTestId("nimbi-island"));
+
+    expect(screen.getByRole("textbox", { name: "Ask Nimbi" })).toBeInTheDocument();
+    expect(screen.getByTestId("nimbi-avatar")).toBeInTheDocument();
+  });
+
+  it("submits the idle composer through the injected action client", async () => {
+    const actionSubmit = vi.fn().mockResolvedValue({
+      accepted: true,
+      response: "Build started.",
+    });
+    render(
+      <NimbiApp
+        snapshot={NIMBI_FIXTURES.idle}
+        reducedMotion
+        actionSubmit={actionSubmit}
+      />,
+    );
+
+    fireEvent.click(screen.getByTestId("nimbi-island"));
+    const input = screen.getByRole("textbox", { name: "Ask Nimbi" });
+    fireEvent.change(input, { target: { value: "check build" } });
+    fireEvent.keyDown(input, { key: "Enter" });
+
+    await waitFor(() =>
+      expect(actionSubmit).toHaveBeenCalledWith({
+        type: "prompt",
+        text: "check build",
+      }),
+    );
+    expect(await screen.findByText("Build started.")).toBeInTheDocument();
+  });
+
+  it("keeps real needs-input attention ahead of a short action response", async () => {
+    const actionSubmit = vi.fn().mockResolvedValue({
+      accepted: true,
+      response: "Starting.",
+    });
+    const { rerender } = render(
+      <NimbiApp
+        snapshot={NIMBI_FIXTURES.idle}
+        reducedMotion
+        actionSubmit={actionSubmit}
+      />,
+    );
+
+    fireEvent.click(screen.getByTestId("nimbi-island"));
+    const input = screen.getByRole("textbox", { name: "Ask Nimbi" });
+    fireEvent.change(input, { target: { value: "work" } });
+    fireEvent.keyDown(input, { key: "Enter" });
+    expect(await screen.findByText("Starting.")).toBeInTheDocument();
+
+    rerender(
+      <NimbiApp
+        snapshot={NIMBI_FIXTURES["needs-input"]}
+        reducedMotion
+        actionSubmit={actionSubmit}
+      />,
+    );
+
+    expect(await screen.findByText("Claude needs your attention")).toBeInTheDocument();
+    expect(screen.getByRole("textbox", { name: "Reply to Claude" })).toBeInTheDocument();
+    expect(screen.queryByText("Starting.")).toBeNull();
   });
 
   it("uses listening as the idle baseline while expanded", () => {
