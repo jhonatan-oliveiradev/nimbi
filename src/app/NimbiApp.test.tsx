@@ -1,7 +1,46 @@
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { NIMBI_FIXTURES } from "../telemetry/fixtures";
-import { describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+const invokeMock = vi.hoisted(() => vi.fn());
+const listenMock = vi.hoisted(() => vi.fn());
+
+vi.mock("@tauri-apps/api/core", () => ({
+  invoke: (...args: unknown[]) => invokeMock(...args),
+}));
+
+vi.mock("@tauri-apps/api/event", () => ({
+  listen: (...args: unknown[]) => listenMock(...args),
+}));
+
 import { NimbiApp } from "./NimbiApp";
+
+beforeEach(() => {
+  invokeMock.mockReset();
+  invokeMock.mockImplementation((command: string) => {
+    if (command === "get_nimbi_snapshot") {
+      return Promise.resolve(NIMBI_FIXTURES.idle);
+    }
+    if (command === "get_preferences") {
+      return Promise.resolve({
+        version: 1,
+        placement: {
+          mode: "docked",
+          monitorId: "primary",
+          edge: "top",
+          offset: 0.5,
+        },
+        presence: { passiveOpacity: 0.72 },
+      });
+    }
+    return Promise.resolve(undefined);
+  });
+  listenMock.mockReset();
+  listenMock.mockResolvedValue(() => {});
+});
+
+afterEach(() => {
+  delete (window as Window & { __TAURI_INTERNALS__?: unknown }).__TAURI_INTERNALS__;
+});
 
 describe("NimbiApp", () => {
   it("renders the semantic Nimbi island shell", () => {
@@ -99,6 +138,38 @@ describe("NimbiApp", () => {
     expect(await screen.findByText("Claude needs your attention")).toBeInTheDocument();
     expect(screen.getByRole("textbox", { name: "Reply to Claude" })).toBeInTheDocument();
     expect(screen.queryByText("Starting.")).toBeNull();
+  });
+
+  it("restores native passive interaction after closing the composer", async () => {
+    (window as Window & { __TAURI_INTERNALS__?: unknown }).__TAURI_INTERNALS__ = {};
+    render(
+      <NimbiApp
+        reducedMotion
+        actionSubmit={vi.fn().mockResolvedValue({ accepted: true })}
+      />,
+    );
+
+    await waitFor(() =>
+      expect(invokeMock).toHaveBeenCalledWith("get_nimbi_snapshot"),
+    );
+
+    fireEvent.click(screen.getByTestId("nimbi-character"));
+    const input = await screen.findByRole("textbox", { name: "Ask Nimbi" });
+
+    await waitFor(() =>
+      expect(invokeMock).toHaveBeenCalledWith("set_interactive", {
+        interactive: true,
+      }),
+    );
+
+    fireEvent.keyDown(input, { key: "Escape" });
+
+    await waitFor(() => {
+      const interactionCalls = invokeMock.mock.calls.filter(
+        ([command]) => command === "set_interactive",
+      );
+      expect(interactionCalls.at(-1)?.[1]).toEqual({ interactive: false });
+    });
   });
 
   it("uses listening as the idle baseline while expanded", () => {
