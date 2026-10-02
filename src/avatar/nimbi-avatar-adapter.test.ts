@@ -24,7 +24,25 @@ describe("Nimbi avatar adapter", () => {
     expect(targetForBehavior(behavior, false)).toEqual(expected);
   });
 
-  it("uses single expressions for transient reduced-motion reactions", () => {
+  it("uses static expressions for every reduced-motion behavior", () => {
+    for (const behavior of [
+      "idle",
+      "notice",
+      "listening",
+      "thinking",
+      "searching",
+      "working",
+      "complete",
+      "needs-input",
+      "error",
+      "tap",
+      "grab",
+      "dragging",
+      "release",
+    ] as const) {
+      expect(targetForBehavior(behavior, true).kind).toBe("expression");
+    }
+
     expect(targetForBehavior("tap", true)).toEqual({
       kind: "expression",
       key: "playful-right",
