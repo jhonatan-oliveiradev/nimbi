@@ -146,6 +146,7 @@ export function NimbiApp({
     activity: currentSnapshot.activity,
     islandOpen: renderedMode === "expanded",
     reducedMotion: motionReduced,
+    actionStatus: actions.state.status,
   });
 
   useEffect(() => {
