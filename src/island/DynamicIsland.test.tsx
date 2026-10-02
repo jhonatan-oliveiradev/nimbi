@@ -511,6 +511,7 @@ describe("DynamicIsland action surface", () => {
     expect(screen.getByTestId("nimbi-avatar")).toBeInTheDocument();
     const input = screen.getByRole("textbox", { name: "Ask Nimbi" });
     expect(input).toHaveAttribute("placeholder", "Ask Nimbi…");
+    expect(input).toHaveFocus();
 
     fireEvent.change(input, { target: { value: "check build" } });
     expect(onActionDraftChange).toHaveBeenCalledWith("check build");
@@ -567,8 +568,10 @@ describe("DynamicIsland action surface", () => {
 
     expect(screen.getByText("Claude needs your attention")).toBeInTheDocument();
     const input = screen.getByRole("textbox", { name: "Reply to Claude" });
-    fireEvent.focus(input);
+    fireEvent.pointerDown(input);
     expect(onActionOpen).toHaveBeenCalledWith("contextual");
+    expect(screen.queryByRole("button", { name: "Allow" })).toBeNull();
+    expect(screen.queryByRole("button", { name: "Deny" })).toBeNull();
   });
 
   it("presents sending, response, and retry states without chat history", () => {
