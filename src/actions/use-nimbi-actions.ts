@@ -2,6 +2,8 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import type { NimbiSnapshot } from "../telemetry/contract";
 import { ActionController } from "./action-controller";
 import { submitNimbiAction } from "./client";
+export const ACTION_RESPONSE_TTL_MS = 4_000;
+
 import type {
   ActionComposeMode,
   ActionUiState,
@@ -60,6 +62,16 @@ export function useNimbiActions({
     controller.telemetryChanged(snapshot);
     sync();
   }, [controller, snapshot, sync]);
+
+  useEffect(() => {
+    if (state.status !== "response") return;
+    const timer = window.setTimeout(() => {
+      controller.dismissResponse();
+      sync();
+    }, ACTION_RESPONSE_TTL_MS);
+    return () => window.clearTimeout(timer);
+  }, [controller, state.status, sync]);
+
 
   const open = useCallback(
     (mode: ActionComposeMode) => {
