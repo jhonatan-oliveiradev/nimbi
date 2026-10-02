@@ -21,6 +21,7 @@ import {
   type WorkArea,
 } from "../placement/placement";
 import { useNimbiDrag } from "../placement/use-nimbi-drag";
+import type { ActionComposeMode, ActionUiState } from "../actions/contract";
 import type { NimbiSnapshot } from "../telemetry/contract";
 import type { IslandMode } from "./island-machine";
 import "./island.css";
@@ -46,6 +47,7 @@ export interface DynamicIslandProps {
   snapshot: NimbiSnapshot;
   mode: IslandMode;
   onToggle?: () => void;
+  onCharacterActivate?: () => void;
   behavior?: NimbiBehavior;
   behaviorEvents?: NimbiBehaviorEvents;
   fixtureOnly?: boolean;
@@ -66,6 +68,13 @@ export interface DynamicIslandProps {
   onNativeDragMove?: () => void;
   onNativeDragEnd?: () => void;
   onNativeDragCancel?: () => void;
+  actionState?: ActionUiState;
+  canActionRetry?: boolean;
+  onActionOpen?: (mode: ActionComposeMode) => void;
+  onActionDraftChange?: (draft: string) => void;
+  onActionSubmit?: () => void;
+  onActionRetry?: () => void;
+  onActionClose?: () => void;
 }
 
 function statusText(snapshot: NimbiSnapshot): string | undefined {
@@ -168,6 +177,7 @@ export function DynamicIsland({
   snapshot,
   mode,
   onToggle,
+  onCharacterActivate,
   behavior,
   behaviorEvents,
   fixtureOnly = false,
@@ -188,6 +198,13 @@ export function DynamicIsland({
   onNativeDragMove,
   onNativeDragEnd,
   onNativeDragCancel,
+  actionState = { status: "idle" },
+  canActionRetry = false,
+  onActionOpen,
+  onActionDraftChange,
+  onActionSubmit,
+  onActionRetry,
+  onActionClose,
 }: DynamicIslandProps) {
   const islandRef = useRef<HTMLElement | null>(null);
   const characterRef = useRef<HTMLDivElement | null>(null);
@@ -346,8 +363,39 @@ export function DynamicIsland({
     (visualMode === "attention" || visualMode === "expanded");
   const muted = !snapshot.connected || snapshot.activity === "offline";
   const expanded = visualMode === "attention" || visualMode === "expanded";
+  const contextualIdle =
+    actionState.status === "idle" &&
+    visualMode === "attention" &&
+    snapshot.activity === "needs-input";
+  const showActionSurface =
+    contentMounted &&
+    !drag.dragging &&
+    (actionState.status !== "idle" || contextualIdle);
+  const actionAgent = snapshot.agent ?? "Agent";
+  const actionMode: ActionComposeMode =
+    actionState.status === "composing"
+      ? actionState.mode
+      : contextualIdle
+        ? "contextual"
+        : "general";
+  const actionLabel =
+    actionMode === "contextual" ? `Reply to ${actionAgent}` : "Ask Nimbi";
+  const actionDraft =
+    actionState.status === "composing"
+      ? actionState.draft
+      : actionState.status === "error"
+        ? actionState.draft
+        : "";
+
   const resolvedBehavior =
-    behavior ?? baselineBehavior(snapshot.activity, mode === "expanded");
+    behavior ??
+    (actionState.status === "composing"
+      ? "listening"
+      : actionState.status === "sending"
+        ? "thinking"
+        : actionState.status === "error"
+          ? "error"
+          : baselineBehavior(snapshot.activity, mode === "expanded"));
 
   const pointFromEvent = (event: ReactPointerEvent) => ({
     x: event.clientX + workArea.x,
@@ -380,6 +428,13 @@ export function DynamicIsland({
     if (!wasDragging) behaviorEvents?.onDragCancel();
   };
 
+  const handleCharacterClick = (event: ReactPointerEvent<HTMLDivElement>) => {
+    event.stopPropagation();
+    if (drag.consumeSuppressedClick()) return;
+    behaviorEvents?.onTap();
+    onCharacterActivate?.();
+  };
+
   const handleClick = () => {
     if (drag.consumeSuppressedClick()) return;
     behaviorEvents?.onTap();
@@ -401,6 +456,8 @@ export function DynamicIsland({
       data-dock-target={drag.dockCandidate ?? "none"}
       data-behavior={resolvedBehavior}
       data-reduced-motion={String(reducedMotion)}
+      data-action-state={actionState.status}
+      data-action-open={String(showActionSurface)}
       className="nimbi-island"
       aria-label="Nimbi"
       initial={false}
@@ -440,6 +497,7 @@ export function DynamicIsland({
         onPointerMove={handleCharacterPointerMove}
         onPointerUp={handleCharacterPointerUp}
         onPointerCancel={handleCharacterPointerCancel}
+        onClick={handleCharacterClick}
       >
         <NimbiAvatar
           behavior={resolvedBehavior}
@@ -493,7 +551,7 @@ export function DynamicIsland({
             </span>
           ) : null}
 
-          {visualMode === "attention" && fixtureOnly ? (
+          {visualMode === "attention" && fixtureOnly && !showActionSurface ? (
             <div className="nimbi-island__fixture-actions" aria-label="Preview actions">
               <button type="button" disabled>
                 Deny
@@ -504,7 +562,71 @@ export function DynamicIsland({
             </div>
           ) : null}
 
-          {visualMode === "expanded" ? (
+          {showActionSurface ? (
+            <div
+              data-testid="nimbi-action-surface"
+              data-action-state={actionState.status}
+              className="nimbi-island__action-surface"
+              onClick={(event) => event.stopPropagation()}
+            >
+              {actionState.status === "sending" ? (
+                <span className="nimbi-island__action-message" role="status">
+                  Sending…
+                </span>
+              ) : actionState.status === "response" ? (
+                <span className="nimbi-island__action-message" role="status">
+                  {actionState.text}
+                </span>
+              ) : (
+                <>
+                  <textarea
+                    className="nimbi-island__action-input"
+                    aria-label={actionLabel}
+                    placeholder={actionMode === "contextual" ? "Reply…" : "Ask Nimbi…"}
+                    value={actionDraft}
+                    rows={1}
+                    autoFocus={actionState.status === "composing"}
+                    onPointerDown={() => {
+                      if (contextualIdle) onActionOpen?.("contextual");
+                    }}
+                    onFocus={() => {
+                      if (contextualIdle) onActionOpen?.("contextual");
+                    }}
+                    onChange={(event) =>
+                      onActionDraftChange?.(event.currentTarget.value)
+                    }
+                    onKeyDown={(event) => {
+                      if (event.key === "Escape") {
+                        event.preventDefault();
+                        onActionClose?.();
+                        return;
+                      }
+                      if (event.key === "Enter" && !event.shiftKey) {
+                        event.preventDefault();
+                        onActionSubmit?.();
+                      }
+                    }}
+                  />
+                  {actionState.status === "error" ? (
+                    <div className="nimbi-island__action-error-row">
+                      <span role="alert" className="nimbi-island__action-error">
+                        {actionState.message}
+                      </span>
+                      {canActionRetry ? (
+                        <button
+                          type="button"
+                          className="nimbi-island__action-retry"
+                          onClick={onActionRetry}
+                        >
+                          Retry
+                        </button>
+                      ) : null}
+                    </div>
+                  ) : null}
+                </>
+              )}
+            </div>
+          ) : visualMode === "expanded" ? (
             <div
               className="nimbi-island__presence-controls"
               onClick={(event) => event.stopPropagation()}

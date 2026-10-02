@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { NimbiApp } from "../app/NimbiApp";
+import type { NimbiActionRequest, NimbiActionResult } from "../actions/contract";
 import {
   DEFAULT_PLACEMENT,
   type NimbiPlacement,
@@ -79,8 +80,24 @@ export function PreviewApp() {
   const [placement, setPlacement] =
     useState<NimbiPlacement>(DEFAULT_PLACEMENT);
   const [passiveOpacity, setPassiveOpacity] = useState(0.72);
+  const [actionOutcome, setActionOutcome] = useState<"success" | "error">("success");
+  const [reducedMotion, setReducedMotion] = useState(false);
   const [workArea, setWorkArea] = useState<WorkArea>(() => viewportWorkArea());
   const snapshot = useMemo(() => NIMBI_FIXTURES[activity], [activity]);
+
+  const actionSubmit = async (
+    request: NimbiActionRequest,
+  ): Promise<NimbiActionResult> => {
+    if (actionOutcome === "error") {
+      throw new Error("Preview NX Agent unavailable");
+    }
+    return {
+      accepted: true,
+      response: "Preview action accepted.",
+      sessionId:
+        request.type === "reply" ? request.sessionId : "preview-action-session",
+    };
+  };
 
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
@@ -106,6 +123,8 @@ export function PreviewApp() {
         placement={placement}
         workArea={workArea}
         passiveOpacity={passiveOpacity}
+        reducedMotion={reducedMotion}
+        actionSubmit={actionSubmit}
         onPlacementChange={setPlacement}
         onPassiveOpacityChange={setPassiveOpacity}
         onResetPlacement={() => setPlacement(DEFAULT_PLACEMENT)}
@@ -114,6 +133,33 @@ export function PreviewApp() {
       <div className="nimbi-preview__placement-readout" aria-live="polite">
         {placementLabel(placement)} · {Math.round(passiveOpacity * 100)}%
       </div>
+
+      <nav
+        className="nimbi-preview__action-fixtures"
+        aria-label="Nimbi action fixtures"
+      >
+        <button
+          type="button"
+          data-active={String(actionOutcome === "success")}
+          onClick={() => setActionOutcome("success")}
+        >
+          Action success
+        </button>
+        <button
+          type="button"
+          data-active={String(actionOutcome === "error")}
+          onClick={() => setActionOutcome("error")}
+        >
+          Action error
+        </button>
+        <button
+          type="button"
+          data-active={String(reducedMotion)}
+          onClick={() => setReducedMotion((value) => !value)}
+        >
+          Reduced motion
+        </button>
+      </nav>
 
       <nav
         className="nimbi-preview__placement-fixtures"

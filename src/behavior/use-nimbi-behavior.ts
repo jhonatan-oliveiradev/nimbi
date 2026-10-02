@@ -5,6 +5,7 @@ import {
   useRef,
   useState,
 } from "react";
+import type { ActionUiState } from "../actions/contract";
 import type { NimbiActivity } from "../telemetry/contract";
 import type {
   DirectInteraction,
@@ -25,6 +26,7 @@ export interface UseNimbiBehaviorOptions {
   activity: NimbiActivity;
   islandOpen: boolean;
   reducedMotion: boolean;
+  actionStatus?: ActionUiState["status"];
 }
 
 export interface NimbiBehaviorEvents {
@@ -45,6 +47,7 @@ export function useNimbiBehavior({
   activity,
   islandOpen,
   reducedMotion,
+  actionStatus,
 }: UseNimbiBehaviorOptions): NimbiBehaviorLifecycle {
   const [hovered, setHovered] = useState(false);
   const [interaction, setInteraction] = useState<DirectInteraction>();
@@ -52,6 +55,7 @@ export function useNimbiBehavior({
   const hoverTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
   const transientTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
   const completionLatch = useRef<CompletionLatch | null>(null);
+  const previousActionStatus = useRef<ActionUiState["status"] | undefined>(undefined);
 
   if (!completionLatch.current) completionLatch.current = new CompletionLatch();
 
@@ -88,6 +92,17 @@ export function useNimbiBehavior({
       scheduleTransient("complete", COMPLETE_REACTION_MS);
     }
   }, [activity, scheduleTransient]);
+
+  useEffect(() => {
+    const enteredResponse =
+      actionStatus === "response" &&
+      previousActionStatus.current !== "response";
+    previousActionStatus.current = actionStatus;
+    if (enteredResponse) {
+      scheduleTransient("complete", COMPLETE_REACTION_MS);
+    }
+  }, [actionStatus, scheduleTransient]);
+
 
   useEffect(
     () => () => {
@@ -131,10 +146,16 @@ export function useNimbiBehavior({
     setInteraction(undefined);
   }, []);
 
-  const baseline = useMemo(
-    () => baselineBehavior(activity, islandOpen),
-    [activity, islandOpen],
-  );
+  const baseline = useMemo(() => {
+    const semantic = baselineBehavior(activity, islandOpen);
+
+    if (actionStatus === "error") return "error";
+    if (activity === "needs-input" || activity === "error") return semantic;
+    if (actionStatus === "sending") return "thinking";
+    if (actionStatus === "composing") return "listening";
+
+    return semantic;
+  }, [actionStatus, activity, islandOpen]);
   const behavior = resolveBehavior({
     baseline,
     hovered,

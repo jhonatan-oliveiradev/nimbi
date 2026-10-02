@@ -493,3 +493,154 @@ describe("DynamicIsland", () => {
     );
   });
 });
+
+
+describe("DynamicIsland action surface", () => {
+  it("renders a Cloudee-anchored composer and keeps the avatar mounted", () => {
+    const onActionDraftChange = vi.fn();
+    render(
+      <DynamicIsland
+        snapshot={NIMBI_FIXTURES.idle}
+        mode="expanded"
+        reducedMotion
+        actionState={{ status: "composing", draft: "", mode: "general" }}
+        onActionDraftChange={onActionDraftChange}
+      />,
+    );
+
+    expect(screen.getByTestId("nimbi-avatar")).toBeInTheDocument();
+    const input = screen.getByRole("textbox", { name: "Ask Nimbi" });
+    expect(input).toHaveAttribute("placeholder", "Ask Nimbi…");
+    expect(input).toHaveFocus();
+
+    fireEvent.change(input, { target: { value: "check build" } });
+    expect(onActionDraftChange).toHaveBeenCalledWith("check build");
+  });
+
+  it("uses Enter to submit, Shift+Enter for a newline, and Escape to close", () => {
+    const onActionSubmit = vi.fn();
+    const onActionClose = vi.fn();
+    const { rerender } = render(
+      <DynamicIsland
+        snapshot={NIMBI_FIXTURES.idle}
+        mode="expanded"
+        reducedMotion
+        actionState={{ status: "composing", draft: "hello", mode: "general" }}
+        onActionSubmit={onActionSubmit}
+        onActionClose={onActionClose}
+      />,
+    );
+
+    const input = screen.getByRole("textbox", { name: "Ask Nimbi" });
+    fireEvent.keyDown(input, { key: "Enter", shiftKey: true });
+    expect(onActionSubmit).not.toHaveBeenCalled();
+
+    fireEvent.keyDown(input, { key: "Enter" });
+    expect(onActionSubmit).toHaveBeenCalledTimes(1);
+
+    rerender(
+      <DynamicIsland
+        snapshot={NIMBI_FIXTURES.idle}
+        mode="expanded"
+        reducedMotion
+        actionState={{ status: "composing", draft: "hello", mode: "general" }}
+        onActionSubmit={onActionSubmit}
+        onActionClose={onActionClose}
+      />,
+    );
+    fireEvent.keyDown(screen.getByRole("textbox", { name: "Ask Nimbi" }), {
+      key: "Escape",
+    });
+    expect(onActionClose).toHaveBeenCalledTimes(1);
+  });
+
+  it("surfaces needs-input context with a contextual reply field", () => {
+    const onActionOpen = vi.fn();
+    render(
+      <DynamicIsland
+        snapshot={NIMBI_FIXTURES["needs-input"]}
+        mode="attention"
+        reducedMotion
+        actionState={{ status: "idle" }}
+        onActionOpen={onActionOpen}
+      />,
+    );
+
+    expect(screen.getByText("Claude needs your attention")).toBeInTheDocument();
+    const input = screen.getByRole("textbox", { name: "Reply to Claude" });
+    fireEvent.pointerDown(input);
+    expect(onActionOpen).toHaveBeenCalledWith("contextual");
+    expect(screen.queryByRole("button", { name: "Allow" })).toBeNull();
+    expect(screen.queryByRole("button", { name: "Deny" })).toBeNull();
+  });
+
+  it("presents sending, response, and retry states without chat history", () => {
+    const { rerender } = render(
+      <DynamicIsland
+        snapshot={NIMBI_FIXTURES.idle}
+        mode="expanded"
+        reducedMotion
+        actionState={{ status: "sending", text: "check build" }}
+      />,
+    );
+    expect(screen.getByTestId("nimbi-action-surface")).toHaveTextContent(
+      "Sending…",
+    );
+    expect(screen.queryByRole("textbox")).toBeNull();
+
+    rerender(
+      <DynamicIsland
+        snapshot={NIMBI_FIXTURES.idle}
+        mode="expanded"
+        reducedMotion
+        actionState={{ status: "response", text: "Build started." }}
+      />,
+    );
+    expect(screen.getByTestId("nimbi-action-surface")).toHaveTextContent(
+      "Build started.",
+    );
+    expect(screen.queryByText("check build")).toBeNull();
+
+    const onActionRetry = vi.fn();
+    rerender(
+      <DynamicIsland
+        snapshot={NIMBI_FIXTURES.idle}
+        mode="expanded"
+        reducedMotion
+        actionState={{
+          status: "error",
+          message: "NX Agent is unavailable",
+          draft: "check build",
+        }}
+        canActionRetry
+        onActionRetry={onActionRetry}
+      />,
+    );
+    expect(screen.getByDisplayValue("check build")).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Retry" }));
+    expect(onActionRetry).toHaveBeenCalledTimes(1);
+  });
+
+  it("keeps the action surface attached in right-edge vertical docking", () => {
+    render(
+      <DynamicIsland
+        snapshot={NIMBI_FIXTURES["needs-input"]}
+        mode="attention"
+        reducedMotion
+        placement={{
+          mode: "docked",
+          monitorId: "preview",
+          edge: "right",
+          offset: 0.5,
+        }}
+        workArea={{ x: 0, y: 0, width: 1000, height: 700 }}
+        actionState={{ status: "composing", draft: "yes", mode: "contextual" }}
+      />,
+    );
+
+    const island = screen.getByTestId("nimbi-island");
+    expect(island).toHaveAttribute("data-orientation", "vertical");
+    expect(screen.getByTestId("nimbi-action-surface")).toBeInTheDocument();
+    expect(screen.getByTestId("nimbi-avatar")).toBeInTheDocument();
+  });
+});
