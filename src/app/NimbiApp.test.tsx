@@ -81,6 +81,25 @@ describe("NimbiApp", () => {
     expect(screen.getByTestId("nimbi-avatar")).toBeInTheDocument();
   });
 
+  it("uses the Tauri action client by default instead of a built-in fixture", async () => {
+    invokeMock.mockResolvedValueOnce({
+      accepted: true,
+      response: "Native bridge accepted.",
+    });
+    render(<NimbiApp snapshot={NIMBI_FIXTURES.idle} reducedMotion />);
+
+    fireEvent.click(screen.getByTestId("nimbi-character"));
+    const input = screen.getByRole("textbox", { name: "Ask Nimbi" });
+    fireEvent.change(input, { target: { value: "check build" } });
+    fireEvent.keyDown(input, { key: "Enter" });
+
+    await waitFor(() =>
+      expect(invokeMock).toHaveBeenCalledWith("submit_nimbi_action", {
+        request: { type: "prompt", text: "check build" },
+      }),
+    );
+  });
+
   it("submits the idle composer through the injected action client", async () => {
     const actionSubmit = vi.fn().mockResolvedValue({
       accepted: true,
