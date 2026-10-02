@@ -1,4 +1,5 @@
 pub mod lifecycle;
+pub mod nx_agent;
 pub mod preferences;
 pub mod runoptic;
 pub mod state;
