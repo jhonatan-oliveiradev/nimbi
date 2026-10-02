@@ -66,6 +66,15 @@ describe("routeAction", () => {
       code: "too-long",
     });
   });
+
+  it("counts Unicode code points instead of UTF-16 code units", () => {
+    expect(routeAction(idle, "☁️".repeat(4000), "general").ok).toBe(true);
+    expect(routeAction(idle, "😀".repeat(8000), "general").ok).toBe(true);
+    expect(routeAction(idle, "😀".repeat(8001), "general")).toEqual({
+      ok: false,
+      code: "too-long",
+    });
+  });
 });
 
 describe("ActionController", () => {
