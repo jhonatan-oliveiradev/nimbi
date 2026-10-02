@@ -2,6 +2,8 @@ import { invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
 import { useReducedMotion } from "motion/react";
 import { useCallback, useEffect, useRef, useState } from "react";
+import { useNimbiActions } from "../actions/use-nimbi-actions";
+import type { NimbiActionRequest, NimbiActionResult } from "../actions/contract";
 import { useNimbiBehavior } from "../behavior/use-nimbi-behavior";
 import { DynamicIsland } from "../island/DynamicIsland";
 import { IslandMachine, type IslandMode } from "../island/island-machine";
@@ -27,6 +29,7 @@ export interface NimbiAppProps {
   onPlacementChange?: (placement: NimbiPlacement) => void;
   onPassiveOpacityChange?: (value: number) => void;
   onResetPlacement?: () => void;
+  actionSubmit?: (request: NimbiActionRequest) => Promise<NimbiActionResult>;
 }
 
 function defaultMode(snapshot: NimbiSnapshot): IslandMode {
@@ -62,6 +65,7 @@ export function NimbiApp({
   onPlacementChange,
   onPassiveOpacityChange,
   onResetPlacement,
+  actionSubmit,
 }: NimbiAppProps) {
   const nativeRuntime = snapshot === undefined && isTauriRuntime();
   const liveSnapshot = useNimbiSnapshot(nativeRuntime);
@@ -74,6 +78,23 @@ export function NimbiApp({
     snapshot ?? (nativeRuntime ? liveSnapshot : NIMBI_FIXTURES.idle);
   const prefersReducedMotion = useReducedMotion();
   const motionReduced = reducedMotion || Boolean(prefersReducedMotion);
+
+  const previewActionSubmit = useCallback(
+    async (request: NimbiActionRequest): Promise<NimbiActionResult> => ({
+      accepted: true,
+      response:
+        request.type === "reply"
+          ? "Got it. I'll keep going."
+          : "Started. I'll keep an eye on it.",
+      sessionId:
+        request.type === "reply" ? request.sessionId : "nimbi-preview-session",
+    }),
+    [],
+  );
+  const actions = useNimbiActions({
+    snapshot: currentSnapshot,
+    submit: actionSubmit ?? (nativeRuntime ? undefined : previewActionSubmit),
+  });
 
   const machineRef = useRef<IslandMachine | null>(null);
   if (!machineRef.current) machineRef.current = new IslandMachine();
@@ -116,7 +137,11 @@ export function NimbiApp({
     setMachineMode(machine.mode);
   }, [currentSnapshot.activity, machine]);
 
-  const renderedMode = mode ?? machineMode;
+  const actionActive = actions.state.status !== "idle";
+  const actionForcesExpanded =
+    actionActive && currentSnapshot.activity !== "needs-input";
+  const renderedMode =
+    mode ?? (actionForcesExpanded ? "expanded" : machineMode);
   const behaviorLifecycle = useNimbiBehavior({
     activity: currentSnapshot.activity,
     islandOpen: renderedMode === "expanded",
@@ -129,9 +154,9 @@ export function NimbiApp({
     void invoke("set_visibility_hint", { hidden });
     void invoke("set_collapsed", { collapsed: hidden });
     void invoke("set_interactive", {
-      interactive: renderedMode === "expanded",
+      interactive: renderedMode === "expanded" || actionActive,
     });
-  }, [nativeRuntime, renderedMode]);
+  }, [actionActive, nativeRuntime, renderedMode]);
 
   useEffect(() => {
     if (!nativeRuntime) {
@@ -195,12 +220,34 @@ export function NimbiApp({
     setLocalPlacement(DEFAULT_PLACEMENT);
   };
 
+  const restoreSemanticMode = () => {
+    machine.setActivity(currentSnapshot.activity);
+    setMachineMode(machine.mode);
+  };
+
+  const handleActionClose = () => {
+    actions.close();
+    restoreSemanticMode();
+  };
+
   const handleToggle = () => {
     if (onToggle) {
       onToggle();
       return;
     }
-    machine.toggleExpanded();
+
+    if (actionActive) {
+      handleActionClose();
+      return;
+    }
+
+    if (currentSnapshot.activity === "needs-input") {
+      actions.open("contextual");
+      return;
+    }
+
+    actions.open("general");
+    if (machine.mode !== "expanded") machine.toggleExpanded();
   };
 
   return (
@@ -222,6 +269,13 @@ export function NimbiApp({
       onPlacementCommit={handlePlacementCommit}
       onPassiveOpacityChange={handlePassiveOpacityChange}
       onResetPlacement={handleResetPlacement}
+      actionState={actions.state}
+      canActionRetry={actions.canRetry}
+      onActionOpen={actions.open}
+      onActionDraftChange={actions.setDraft}
+      onActionSubmit={() => void actions.submit()}
+      onActionRetry={() => void actions.retry()}
+      onActionClose={handleActionClose}
       nativeShell={nativeRuntime}
       onNativeDragStart={
         nativeRuntime ? () => void invoke("begin_drag") : undefined
