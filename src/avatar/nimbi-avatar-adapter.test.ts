@@ -73,7 +73,9 @@ describe("Nimbi avatar adapter", () => {
     ] as const) {
       const target = targetForBehavior(behavior, true);
       if (target.kind !== "expression") throw new Error("reduced target must be an expression");
-      expect(NIMBI_CLOUDEE_DEFINITION.expressions[target.key]?.motion).toEqual({
+      const expressionKey =
+        target.key as keyof typeof NIMBI_CLOUDEE_DEFINITION.expressions;
+      expect(NIMBI_CLOUDEE_DEFINITION.expressions[expressionKey].motion).toEqual({
         eyes: "none",
         body: "none",
       });
