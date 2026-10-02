@@ -221,15 +221,22 @@ export function NimbiApp({
     setLocalPlacement(DEFAULT_PLACEMENT);
   };
 
-  const restoreSemanticMode = () => {
+  const restoreSemanticMode = useCallback(() => {
     machine.setActivity(currentSnapshot.activity);
     setMachineMode(machine.mode);
-  };
+  }, [currentSnapshot.activity, machine]);
 
-  const handleActionClose = () => {
+  const handleActionClose = useCallback(() => {
     actions.close();
     restoreSemanticMode();
-  };
+  }, [actions.close, restoreSemanticMode]);
+
+  useEffect(() => {
+    if (!actionActive) return;
+    const closeOnWindowBlur = () => handleActionClose();
+    window.addEventListener("blur", closeOnWindowBlur);
+    return () => window.removeEventListener("blur", closeOnWindowBlur);
+  }, [actionActive, handleActionClose]);
 
   const handleToggle = () => {
     if (onToggle) {
