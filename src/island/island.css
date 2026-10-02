@@ -621,6 +621,37 @@
   pointer-events: none;
 }
 
+.nimbi-preview__action-fixtures {
+  position: fixed;
+  top: 18px;
+  right: 18px;
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 6px;
+  max-width: min(520px, calc(100vw - 36px));
+  pointer-events: auto;
+}
+
+.nimbi-preview__action-fixtures button {
+  padding: 6px 10px;
+  color: rgb(255 255 255 / 52%);
+  font-size: 10px;
+  background: rgb(5 5 7 / 62%);
+  border: 1px solid rgb(255 255 255 / 7%);
+  border-radius: 999px;
+  backdrop-filter: blur(14px);
+  cursor: pointer;
+}
+
+.nimbi-preview__action-fixtures button:hover,
+.nimbi-preview__action-fixtures button:focus-visible,
+.nimbi-preview__action-fixtures button[data-active="true"] {
+  color: #fff;
+  border-color: rgb(185 168 255 / 30%);
+  outline: none;
+}
+
 .nimbi-preview__placement-fixtures {
   position: fixed;
   right: 18px;
