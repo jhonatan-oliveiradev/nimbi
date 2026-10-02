@@ -160,7 +160,7 @@ describe("useNimbiBehavior", () => {
           reducedMotion: false,
           actionStatus,
         }),
-      { initialProps: { actionStatus: "composing" as const } },
+      { initialProps: { actionStatus: "composing" as ActionUiState["status"] } },
     );
 
     expect(result.current.behavior).toBe("needs-input");
