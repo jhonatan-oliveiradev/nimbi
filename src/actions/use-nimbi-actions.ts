@@ -52,7 +52,7 @@ export function useNimbiActions({
   const pendingRef = useRef(false);
 
   const sync = useCallback(() => {
-    setState(controller.state);
+    setState({ ...controller.state });
   }, [controller]);
 
   useEffect(() => {
