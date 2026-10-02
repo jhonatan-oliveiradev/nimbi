@@ -30,7 +30,7 @@ const REDUCED_TARGETS: Record<NimbiBehavior, AvatarTarget> = {
   working: { kind: "expression", key: "small-attentive" },
   complete: { kind: "expression", key: "joyful-wide" },
   "needs-input": { kind: "expression", key: "attentive-left" },
-  error: { kind: "expression", key: "uneasy-left" },
+  error: { kind: "expression", key: "skeptical-left" },
   tap: { kind: "expression", key: "playful-right" },
   grab: { kind: "expression", key: "small-attentive" },
   dragging: { kind: "expression", key: "attentive-left" },
