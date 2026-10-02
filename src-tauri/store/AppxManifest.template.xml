@@ -13,7 +13,7 @@
     ProcessorArchitecture="x64" />
 
   <Properties>
-    <DisplayName>Nimbi</DisplayName>
+    <DisplayName>Nimbi Desktop Companion</DisplayName>
     <PublisherDisplayName>__PUBLISHER_DISPLAY_NAME__</PublisherDisplayName>
     <Description>Nimbi ambient AI companion</Description>
     <Logo>Assets\StoreLogo.png</Logo>
@@ -38,7 +38,7 @@
       uap10:RuntimeBehavior="packagedClassicApp"
       uap10:TrustLevel="mediumIL">
       <uap:VisualElements
-        DisplayName="Nimbi"
+        DisplayName="Nimbi Desktop Companion"
         Description="Ambient AI companion"
         BackgroundColor="transparent"
         Square150x150Logo="Assets\Square150x150Logo.png"
