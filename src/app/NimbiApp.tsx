@@ -241,13 +241,21 @@ export function NimbiApp({
       return;
     }
 
+    machine.toggleExpanded();
+  };
+
+  const handleCharacterActivate = () => {
+    if (actionActive) {
+      handleActionClose();
+      return;
+    }
+
     if (currentSnapshot.activity === "needs-input") {
       actions.open("contextual");
       return;
     }
 
     actions.open("general");
-    if (machine.mode !== "expanded") machine.toggleExpanded();
   };
 
   return (
@@ -257,6 +265,7 @@ export function NimbiApp({
       fixtureOnly={fixtureOnly}
       reducedMotion={motionReduced}
       onToggle={handleToggle}
+      onCharacterActivate={handleCharacterActivate}
       behavior={behaviorLifecycle.behavior}
       behaviorEvents={behaviorLifecycle}
       onBoundsChange={reportBounds}
