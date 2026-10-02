@@ -21,9 +21,19 @@ const TARGETS: Record<NimbiBehavior, AvatarTarget> = {
   release: { kind: "expression", key: "joyful-down-right" },
 };
 
-const REDUCED_TRANSIENT_TARGETS: Partial<Record<NimbiBehavior, AvatarTarget>> = {
+const REDUCED_TARGETS: Record<NimbiBehavior, AvatarTarget> = {
+  idle: { kind: "expression", key: "neutral" },
+  notice: { kind: "expression", key: "attentive-left" },
+  listening: { kind: "expression", key: "small-attentive" },
+  thinking: { kind: "expression", key: "gentle-downward-gaze" },
+  searching: { kind: "expression", key: "attentive-left" },
+  working: { kind: "expression", key: "small-attentive" },
   complete: { kind: "expression", key: "joyful-wide" },
+  "needs-input": { kind: "expression", key: "attentive-left" },
+  error: { kind: "expression", key: "skeptical-left" },
   tap: { kind: "expression", key: "playful-right" },
+  grab: { kind: "expression", key: "small-attentive" },
+  dragging: { kind: "expression", key: "attentive-left" },
   release: { kind: "expression", key: "gentle-downward-gaze" },
 };
 
@@ -31,9 +41,7 @@ export function targetForBehavior(
   behavior: NimbiBehavior,
   reducedMotion: boolean,
 ): AvatarTarget {
-  return reducedMotion
-    ? REDUCED_TRANSIENT_TARGETS[behavior] ?? TARGETS[behavior]
-    : TARGETS[behavior];
+  return reducedMotion ? REDUCED_TARGETS[behavior] : TARGETS[behavior];
 }
 
 function targetExists(

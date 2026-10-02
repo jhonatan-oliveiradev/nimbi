@@ -135,6 +135,48 @@ describe("NimbiAvatar", () => {
     expect(runtime.play).not.toHaveBeenCalled();
   });
 
+  it("pauses the Cloudee runtime while hidden and restores the current target when shown", () => {
+    const view = render(
+      <NimbiAvatar
+        behavior="working"
+        activity="working"
+        reducedMotion={false}
+        passiveOpacity={0.72}
+        interaction="passive"
+        hidden={false}
+      />,
+    );
+
+    expect(runtime.play).toHaveBeenCalledWith("working");
+
+    view.rerender(
+      <NimbiAvatar
+        behavior="working"
+        activity="working"
+        reducedMotion={false}
+        passiveOpacity={0.72}
+        interaction="passive"
+        hidden
+      />,
+    );
+
+    expect(runtime.pause).toHaveBeenCalledTimes(1);
+
+    view.rerender(
+      <NimbiAvatar
+        behavior="working"
+        activity="working"
+        reducedMotion={false}
+        passiveOpacity={0.72}
+        interaction="passive"
+        hidden={false}
+      />,
+    );
+
+    expect(runtime.play).toHaveBeenCalledTimes(2);
+    expect(runtime.play).toHaveBeenLastCalledWith("working");
+  });
+
   it("falls back to the existing static cloud if the avatar runtime throws", () => {
     runtime.shouldThrow = true;
     vi.spyOn(console, "error").mockImplementation(() => {});

@@ -29,6 +29,7 @@ export interface NimbiAvatarProps {
   reducedMotion: boolean;
   passiveOpacity: number;
   interaction: PresenceInteraction;
+  hidden?: boolean;
   pointer?: { x: number; y: number };
   bounds?: DOMRectLike;
   className?: string;
@@ -69,13 +70,20 @@ function sameTarget(left: AvatarTarget | undefined, right: AvatarTarget): boolea
 function CloudeeRuntime({
   behavior,
   reducedMotion,
-}: Pick<NimbiAvatarProps, "behavior" | "reducedMotion">) {
+  hidden = false,
+}: Pick<NimbiAvatarProps, "behavior" | "reducedMotion" | "hidden">) {
   const controller = useRef<AvatarController | null>(null);
   const previousTarget = useRef<AvatarTarget | undefined>(undefined);
 
   useEffect(() => {
     const runtime = controller.current;
     if (!runtime) return;
+
+    if (hidden) {
+      runtime.pause();
+      previousTarget.current = undefined;
+      return;
+    }
 
     const target = safeTargetForBehavior(behavior, reducedMotion);
     if (sameTarget(previousTarget.current, target)) return;
@@ -89,7 +97,7 @@ function CloudeeRuntime({
     if (!result.ok) {
       console.error("Nimbi avatar rejected runtime target.", result.error);
     }
-  }, [behavior, reducedMotion]);
+  }, [behavior, reducedMotion, hidden]);
 
   return (
     <Avatar
@@ -109,6 +117,7 @@ export function NimbiAvatar({
   reducedMotion,
   passiveOpacity,
   interaction,
+  hidden = false,
   pointer,
   bounds,
   className = "",
@@ -120,6 +129,7 @@ export function NimbiAvatar({
       pointer={pointer}
       bounds={bounds}
       reducedMotion={reducedMotion}
+      hidden={hidden}
       passiveOpacity={passiveOpacity}
       interaction={interaction}
       className={className}
@@ -129,16 +139,20 @@ export function NimbiAvatar({
   const style = { opacity } satisfies CSSProperties;
 
   return (
-    <div
-      className={`nimbi-avatar ${className}`.trim()}
-      data-testid="nimbi-avatar"
-      data-behavior={behavior}
-      data-effective-opacity={String(opacity)}
-      style={style}
-    >
-      <AvatarRuntimeBoundary fallback={fallback}>
-        <CloudeeRuntime behavior={behavior} reducedMotion={reducedMotion} />
-      </AvatarRuntimeBoundary>
-    </div>
+    <AvatarRuntimeBoundary fallback={fallback}>
+      <div
+        className={`nimbi-avatar ${className}`.trim()}
+        data-testid="nimbi-avatar"
+        data-behavior={behavior}
+        data-effective-opacity={String(opacity)}
+        style={style}
+      >
+        <CloudeeRuntime
+          behavior={behavior}
+          reducedMotion={reducedMotion}
+          hidden={hidden}
+        />
+      </div>
+    </AvatarRuntimeBoundary>
   );
 }

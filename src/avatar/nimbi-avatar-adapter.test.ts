@@ -24,7 +24,25 @@ describe("Nimbi avatar adapter", () => {
     expect(targetForBehavior(behavior, false)).toEqual(expected);
   });
 
-  it("uses single expressions for transient reduced-motion reactions", () => {
+  it("uses static expressions for every reduced-motion behavior", () => {
+    for (const behavior of [
+      "idle",
+      "notice",
+      "listening",
+      "thinking",
+      "searching",
+      "working",
+      "complete",
+      "needs-input",
+      "error",
+      "tap",
+      "grab",
+      "dragging",
+      "release",
+    ] as const) {
+      expect(targetForBehavior(behavior, true).kind).toBe("expression");
+    }
+
     expect(targetForBehavior("tap", true)).toEqual({
       kind: "expression",
       key: "playful-right",
@@ -37,6 +55,31 @@ describe("Nimbi avatar adapter", () => {
       kind: "expression",
       key: "joyful-wide",
     });
+
+    for (const behavior of [
+      "idle",
+      "notice",
+      "listening",
+      "thinking",
+      "searching",
+      "working",
+      "complete",
+      "needs-input",
+      "error",
+      "tap",
+      "grab",
+      "dragging",
+      "release",
+    ] as const) {
+      const target = targetForBehavior(behavior, true);
+      if (target.kind !== "expression") throw new Error("reduced target must be an expression");
+      const expressionKey =
+        target.key as keyof typeof NIMBI_CLOUDEE_DEFINITION.expressions;
+      expect(NIMBI_CLOUDEE_DEFINITION.expressions[expressionKey].motion).toEqual({
+        eyes: "none",
+        body: "none",
+      });
+    }
   });
 
   it("keeps every configured target valid for the shipped Cloudee definition", () => {

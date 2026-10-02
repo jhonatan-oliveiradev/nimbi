@@ -64,13 +64,15 @@ describe("useNimbiDrag", () => {
     expect(onDragEnd).toHaveBeenCalledTimes(1);
   });
 
-  it("starts dragging after six logical pixels and previews edge snapping", () => {
+  it("keeps the drag preview floating while exposing the magnetic dock target", () => {
     const preview = vi.fn();
+    const commit = vi.fn();
     const { result } = renderHook(() =>
       useNimbiDrag({
         placement: startPlacement,
         workArea: area,
         onPreview: preview,
+        onCommit: commit,
       }),
     );
 
@@ -79,10 +81,18 @@ describe("useNimbiDrag", () => {
 
     expect(result.current.dragging).toBe(true);
     expect(result.current.previewPlacement).toMatchObject({
-      mode: "docked",
-      edge: "top",
+      mode: "floating",
     });
-    expect(preview).toHaveBeenCalled();
+    expect(result.current.dockCandidate).toBe("top");
+    expect(preview).toHaveBeenCalledWith(
+      expect.objectContaining({ mode: "floating" }),
+    );
+
+    act(() => result.current.end({ x: 508, y: 10 }));
+    expect(commit).toHaveBeenCalledWith(
+      expect.objectContaining({ mode: "docked", edge: "top" }),
+    );
+    expect(result.current.dockCandidate).toBeUndefined();
   });
 
   it("commits a floating placement when released away from all edges", () => {
