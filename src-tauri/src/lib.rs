@@ -398,3 +398,37 @@ pub fn run() {
 
 #[cfg(test)]
 mod runtime_tests {
+    use super::*;
+
+    #[test]
+    fn cursor_poll_stays_active_for_visible_interactive_islands() {
+        assert!(cursor_poll_should_run(false, false));
+        assert!(cursor_poll_should_run(false, true));
+        assert!(!cursor_poll_should_run(true, false));
+        assert!(!cursor_poll_should_run(true, true));
+    }
+
+    #[test]
+    fn hidden_idle_polling_is_slow() {
+        assert_eq!(
+            polling_delay(true, &NimbiActivity::Idle),
+            Duration::from_secs(10)
+        );
+        assert_eq!(
+            polling_delay(true, &NimbiActivity::Offline),
+            Duration::from_secs(10)
+        );
+    }
+
+    #[test]
+    fn visible_or_active_polling_is_fast() {
+        assert_eq!(
+            polling_delay(false, &NimbiActivity::Idle),
+            Duration::from_secs(2)
+        );
+        assert_eq!(
+            polling_delay(true, &NimbiActivity::Working),
+            Duration::from_secs(2)
+        );
+    }
+}
