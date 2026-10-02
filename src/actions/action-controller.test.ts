@@ -43,6 +43,13 @@ describe("routeAction", () => {
     });
   });
 
+  it("never turns a contextual reply into a general prompt after attention clears", () => {
+    expect(routeAction(idle, "yes", "contextual")).toEqual({
+      ok: false,
+      code: "missing-session",
+    });
+  });
+
   it("allows an explicit general prompt even if needs-input lacks a session", () => {
     expect(
       routeAction({ ...needsInput, sessionId: undefined }, "help", "general"),
@@ -109,6 +116,27 @@ describe("ActionController", () => {
     expect(controller.state).toEqual({
       status: "response",
       text: "Build started. I'll keep an eye on it.",
+    });
+  });
+
+  it("does not retarget a contextual draft when the attention session changes before submit", () => {
+    const controller = new ActionController();
+    controller.compose("contextual", "session-a");
+    controller.updateDraft("yes");
+
+    const routed = controller.beginSubmit({
+      ...needsInput,
+      sessionId: "session-b",
+    });
+
+    expect(routed).toEqual({
+      ok: false,
+      code: "missing-session",
+    });
+    expect(controller.state).toEqual({
+      status: "composing",
+      draft: "yes",
+      mode: "contextual",
     });
   });
 
