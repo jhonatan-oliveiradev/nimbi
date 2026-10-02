@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import {
   snapPlacement,
+  type DockEdge,
   type NimbiPlacement,
   type Point,
   type WorkArea,
@@ -23,6 +24,7 @@ export interface UseNimbiDragOptions {
 export interface NimbiDragController {
   dragging: boolean;
   previewPlacement: NimbiPlacement;
+  dockCandidate?: DockEdge;
   begin(point: Point): void;
   move(point: Point): void;
   end(point: Point): void;
@@ -50,6 +52,7 @@ export function useNimbiDrag({
   const suppressClickRef = useRef(false);
   const [dragging, setDragging] = useState(false);
   const [previewPlacement, setPreviewPlacement] = useState(placement);
+  const [dockCandidate, setDockCandidate] = useState<DockEdge | undefined>();
 
   useEffect(() => {
     if (!draggingRef.current) setPreviewPlacement(placement);
@@ -60,6 +63,7 @@ export function useNimbiDrag({
     draggingRef.current = false;
     suppressClickRef.current = false;
     setDragging(false);
+    setDockCandidate(undefined);
   }, []);
 
   const move = useCallback(
@@ -77,7 +81,17 @@ export function useNimbiDrag({
       }
 
       onDragMove?.();
-      const next = snapPlacement(point, workArea, placement);
+      const snapped = snapPlacement(point, workArea, placement);
+      const next: NimbiPlacement =
+        snapped.mode === "docked"
+          ? {
+              mode: "floating",
+              monitorId: snapped.monitorId,
+              x: Math.min(1, Math.max(0, (point.x - workArea.x) / workArea.width)),
+              y: Math.min(1, Math.max(0, (point.y - workArea.y) / workArea.height)),
+            }
+          : snapped;
+      setDockCandidate(snapped.mode === "docked" ? snapped.edge : undefined);
       setPreviewPlacement(next);
       onPreview?.(next);
     },
@@ -92,9 +106,11 @@ export function useNimbiDrag({
         setPreviewPlacement(next);
         onPreview?.(next);
         onCommit?.(next);
+        setDockCandidate(undefined);
         onDragEnd?.();
       } else if (!commit) {
         setPreviewPlacement(placement);
+        setDockCandidate(undefined);
         if (wasDragging) onDragCancel?.();
       }
 
@@ -117,6 +133,7 @@ export function useNimbiDrag({
   return {
     dragging,
     previewPlacement,
+    dockCandidate,
     begin,
     move,
     end,
