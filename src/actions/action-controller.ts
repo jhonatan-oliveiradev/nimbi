@@ -24,7 +24,10 @@ export function routeAction(
     return { ok: false, code: "too-long" };
   }
 
-  if (mode === "contextual" && snapshot.activity === "needs-input") {
+  if (mode === "contextual") {
+    if (snapshot.activity !== "needs-input") {
+      return { ok: false, code: "missing-session" };
+    }
     const sessionId = snapshot.sessionId?.trim();
     if (!sessionId) return { ok: false, code: "missing-session" };
     return {
@@ -50,11 +53,14 @@ export class ActionController {
   state: ActionUiState = { status: "idle" };
 
   private mode: ActionComposeMode = "general";
+  private contextualSessionId: string | undefined;
   private lastSubmission: RetrySubmission | null = null;
   private retryValid = false;
 
-  compose(mode: ActionComposeMode): void {
+  compose(mode: ActionComposeMode, sessionId?: string): void {
     this.mode = mode;
+    this.contextualSessionId =
+      mode === "contextual" ? sessionId?.trim() || undefined : undefined;
     this.state = { status: "composing", draft: "", mode };
     this.lastSubmission = null;
     this.retryValid = false;
@@ -75,6 +81,14 @@ export class ActionController {
 
     const routed = routeAction(snapshot, draft, this.mode);
     if (!routed.ok) return routed;
+
+    if (
+      routed.context.type === "reply" &&
+      this.contextualSessionId &&
+      routed.context.sessionId !== this.contextualSessionId
+    ) {
+      return { ok: false, code: "missing-session" };
+    }
 
     this.lastSubmission = {
       request: routed.request,
@@ -123,6 +137,7 @@ export class ActionController {
 
   reset(): void {
     this.state = { status: "idle" };
+    this.contextualSessionId = undefined;
     this.lastSubmission = null;
     this.retryValid = false;
   }
