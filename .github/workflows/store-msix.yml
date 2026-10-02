@@ -54,16 +54,16 @@ jobs:
         shell: pwsh
         run: npm run tauri:build -- --no-bundle
 
-      - name: Build unsigned MSIX for packaging validation
+      - name: Build Microsoft Store MSIX
         if: github.event_name == 'pull_request'
         shell: pwsh
         run: |
           .\scripts\build-store-msix.ps1 `
-            -PackageIdentityName "NimbiDevPreview" `
-            -Publisher "CN=Nimbi Development" `
-            -PublisherDisplayName "Nimbi Development" `
+            -PackageIdentityName "NXStudio.NimbiDesktopCompanion" `
+            -Publisher "CN=BC7E44FB-C510-423E-9B0B-F0F3E2B1A658" `
+            -PublisherDisplayName "NX Studio" `
             -Version "0.1.0.0" `
-            -OutputPath "artifacts\store\Nimbi-preview.msix"
+            -OutputPath "artifacts\store\Nimbi-store.msix"
 
       - name: Build Microsoft Store MSIX
         if: github.event_name == 'workflow_dispatch'
