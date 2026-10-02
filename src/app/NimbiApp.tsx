@@ -220,11 +220,11 @@ export function NimbiApp({
   }, [actions.close, restoreSemanticMode]);
 
   useEffect(() => {
-    if (!actionActive) return;
+    if (!actionActive || currentSnapshot.activity === "needs-input") return;
     const closeOnWindowBlur = () => handleActionClose();
     window.addEventListener("blur", closeOnWindowBlur);
     return () => window.removeEventListener("blur", closeOnWindowBlur);
-  }, [actionActive, handleActionClose]);
+  }, [actionActive, currentSnapshot.activity, handleActionClose]);
 
   const handleToggle = () => {
     if (onToggle) {
