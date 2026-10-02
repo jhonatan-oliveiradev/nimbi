@@ -121,6 +121,12 @@ export class ActionController {
     }
   }
 
+  reset(): void {
+    this.state = { status: "idle" };
+    this.lastSubmission = null;
+    this.retryValid = false;
+  }
+
   telemetryChanged(snapshot: NimbiSnapshot): void {
     if (this.lastSubmission?.context.type === "reply") {
       const currentSession =
