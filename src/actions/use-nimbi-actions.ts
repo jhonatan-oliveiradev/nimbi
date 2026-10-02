@@ -76,7 +76,10 @@ export function useNimbiActions({
   const open = useCallback(
     (mode: ActionComposeMode) => {
       if (!enabled || pendingRef.current) return;
-      controller.compose(mode);
+      controller.compose(
+        mode,
+        mode === "contextual" ? snapshotRef.current.sessionId : undefined,
+      );
       sync();
     },
     [controller, enabled, sync],
@@ -125,7 +128,12 @@ export function useNimbiActions({
 
     const mode: ActionComposeMode =
       retrySubmission.context.type === "reply" ? "contextual" : "general";
-    controller.compose(mode);
+    controller.compose(
+      mode,
+      retrySubmission.context.type === "reply"
+        ? retrySubmission.context.sessionId
+        : undefined,
+    );
     controller.updateDraft(retrySubmission.request.text);
     const routed = controller.beginSubmit(snapshotRef.current);
     if (!routed.ok) {
