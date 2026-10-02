@@ -22,6 +22,9 @@
   user-select: none;
   transform-origin: top center;
   transition:
+    top 260ms cubic-bezier(.16,1,.3,1),
+    left 260ms cubic-bezier(.16,1,.3,1),
+    translate 260ms cubic-bezier(.16,1,.3,1),
     width 280ms cubic-bezier(.2,.8,.2,1),
     height 300ms cubic-bezier(.2,.8,.2,1),
     border-radius 300ms cubic-bezier(.2,.8,.2,1),
@@ -89,6 +92,18 @@
   border-radius: 999px;
   box-shadow: 0 16px 34px rgb(0 0 0 / 42%);
   cursor: grabbing;
+  transition:
+    width 180ms cubic-bezier(.2,.8,.2,1),
+    height 180ms cubic-bezier(.2,.8,.2,1),
+    border-radius 180ms cubic-bezier(.2,.8,.2,1),
+    box-shadow 180ms ease;
+}
+
+.nimbi-island[data-dragging="true"][data-dock-target]:not([data-dock-target="none"]) {
+  box-shadow:
+    0 12px 30px rgb(0 0 0 / 38%),
+    0 0 0 1px rgb(185 168 255 / 18%),
+    0 0 24px rgb(185 168 255 / 13%);
 }
 
 .nimbi-island__character .nimbi-avatar {
