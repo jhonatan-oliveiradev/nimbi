@@ -1,3 +1,4 @@
+pub mod lifecycle;
 pub mod preferences;
 pub mod runoptic;
 pub mod state;
@@ -13,11 +14,16 @@ mod window_tests;
 use std::sync::atomic::Ordering;
 use std::time::Duration;
 
+use lifecycle::TrayCommand;
 use preferences::{
     save_preferences_to, NimbiPlacement, NimbiPresence, PreferencesV1,
 };
 use state::{NimbiActivity, NimbiSnapshot, RuntimeState};
-use tauri::{AppHandle, Emitter, Manager, State};
+use tauri::{
+    menu::{Menu, MenuItem},
+    tray::{MouseButton, MouseButtonState, TrayIconBuilder, TrayIconEvent},
+    AppHandle, Emitter, Manager, State, WindowEvent,
+};
 
 #[tauri::command]
 fn get_nimbi_snapshot(state: State<'_, RuntimeState>) -> NimbiSnapshot {
@@ -213,6 +219,70 @@ fn cursor_poll_should_run(collapsed: bool, _interactive: bool) -> bool {
     !collapsed
 }
 
+fn set_nimbi_window_visible(app: &AppHandle, visible: bool) {
+    let state = app.state::<RuntimeState>();
+    state.hidden.store(!visible, Ordering::Relaxed);
+
+    if let Some(win) = window::window(app) {
+        if visible {
+            apply_current_geometry(app, &state);
+            let _ = win.show();
+            let collapsed = state.window_gate.collapsed.load(Ordering::Relaxed);
+            let interactive = state.interactive.load(Ordering::Relaxed);
+            state
+                .window_gate
+                .set_active(cursor_poll_should_run(collapsed, interactive));
+        } else {
+            state.window_gate.set_active(false);
+            let _ = win.hide();
+        }
+    }
+}
+
+fn toggle_nimbi_window(app: &AppHandle) {
+    let visible = window::window(app)
+        .and_then(|win| win.is_visible().ok())
+        .unwrap_or(false);
+    set_nimbi_window_visible(app, !visible);
+}
+
+fn setup_tray(app: &tauri::App) -> tauri::Result<()> {
+    let show = MenuItem::with_id(app, "nimbi-show", "Show Nimbi", true, None::<&str>)?;
+    let hide = MenuItem::with_id(app, "nimbi-hide", "Hide Nimbi", true, None::<&str>)?;
+    let quit = MenuItem::with_id(app, "nimbi-quit", "Quit Nimbi", true, None::<&str>)?;
+    let menu = Menu::with_items(app, &[&show, &hide, &quit])?;
+
+    let mut tray = TrayIconBuilder::with_id("nimbi-tray")
+        .menu(&menu)
+        .show_menu_on_left_click(false)
+        .tooltip("Nimbi");
+
+    if let Some(icon) = app.default_window_icon() {
+        tray = tray.icon(icon.clone());
+    }
+
+    tray
+        .on_menu_event(|app, event| match lifecycle::tray_command(event.id().as_ref()) {
+            Some(TrayCommand::Show) => set_nimbi_window_visible(app, true),
+            Some(TrayCommand::Hide) => set_nimbi_window_visible(app, false),
+            Some(TrayCommand::Quit) => app.exit(0),
+            None => {}
+        })
+        .on_tray_icon_event(|tray, event| {
+            if let TrayIconEvent::Click {
+                button: MouseButton::Left,
+                button_state: MouseButtonState::Up,
+                ..
+            } = event
+            {
+                toggle_nimbi_window(tray.app_handle());
+            }
+        })
+        .build(app)?;
+
+    Ok(())
+}
+
 fn polling_delay(hidden: bool, activity: &NimbiActivity) -> Duration {
     if hidden && matches!(activity, NimbiActivity::Idle | NimbiActivity::Offline) {
         Duration::from_secs(10)
@@ -310,7 +380,17 @@ pub fn run() {
             window::spawn_cursor_poll(handle.clone(), state.window_gate.clone());
             start_monitor_watch(handle.clone());
             start_runoptic_poll(handle);
+            setup_tray(app)?;
             Ok(())
+        })
+        .on_window_event(|window, event| {
+            if window.label() != window::WINDOW_LABEL {
+                return;
+            }
+            if let WindowEvent::CloseRequested { api, .. } = event {
+                api.prevent_close();
+                set_nimbi_window_visible(window.app_handle(), false);
+            }
         })
         .run(tauri::generate_context!())
         .expect("error while running Nimbi");
