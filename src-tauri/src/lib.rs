@@ -5,6 +5,8 @@ pub mod state;
 pub mod window;
 
 #[cfg(test)]
+mod nx_agent_tests;
+#[cfg(test)]
 mod preferences_tests;
 #[cfg(test)]
 mod runoptic_tests;
