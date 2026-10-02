@@ -1,0 +1,84 @@
+name: Store MSIX
+
+on:
+  pull_request:
+    paths:
+      - ".github/workflows/store-msix.yml"
+      - "scripts/build-store-msix.ps1"
+      - "src-tauri/store/**"
+      - "src-tauri/**"
+      - "src/**"
+      - "package.json"
+      - "package-lock.json"
+  workflow_dispatch:
+    inputs:
+      package_identity_name:
+        description: "Partner Center Package/Identity/Name"
+        required: true
+        type: string
+      publisher:
+        description: "Partner Center Publisher (CN=...)"
+        required: true
+        type: string
+      publisher_display_name:
+        description: "Partner Center Publisher display name"
+        required: true
+        type: string
+      version:
+        description: "Four-part MSIX version"
+        required: true
+        default: "0.1.0.0"
+        type: string
+
+jobs:
+  store-msix:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - uses: dtolnay/rust-toolchain@stable
+
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: src-tauri -> target
+
+      - name: Install dependencies
+        shell: pwsh
+        run: npm ci
+
+      - name: Build release executable
+        shell: pwsh
+        run: npm run tauri:build -- --no-bundle
+
+      - name: Build unsigned MSIX for packaging validation
+        if: github.event_name == 'pull_request'
+        shell: pwsh
+        run: |
+          .\scripts\build-store-msix.ps1 `
+            -PackageIdentityName "NimbiDevPreview" `
+            -Publisher "CN=Nimbi Development" `
+            -PublisherDisplayName "Nimbi Development" `
+            -Version "0.1.0.0" `
+            -OutputPath "artifacts\store\Nimbi-preview.msix"
+
+      - name: Build Microsoft Store MSIX
+        if: github.event_name == 'workflow_dispatch'
+        shell: pwsh
+        run: |
+          .\scripts\build-store-msix.ps1 `
+            -PackageIdentityName "${{ inputs.package_identity_name }}" `
+            -Publisher "${{ inputs.publisher }}" `
+            -PublisherDisplayName "${{ inputs.publisher_display_name }}" `
+            -Version "${{ inputs.version }}" `
+            -OutputPath "artifacts\store\Nimbi-store.msix"
+
+      - name: Upload MSIX artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: nimbi-store-msix
+          path: artifacts/store/*.msix
+          if-no-files-found: error
