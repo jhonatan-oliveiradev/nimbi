@@ -444,6 +444,7 @@ export function DynamicIsland({
           behavior={resolvedBehavior}
           activity={snapshot.activity}
           reducedMotion={reducedMotion}
+          hidden={visualMode === "hidden"}
           pointer={externalPointer ?? pointer}
           bounds={cloudBounds}
           passiveOpacity={passiveOpacity}
