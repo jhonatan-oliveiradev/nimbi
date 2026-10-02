@@ -79,21 +79,9 @@ export function NimbiApp({
   const prefersReducedMotion = useReducedMotion();
   const motionReduced = reducedMotion || Boolean(prefersReducedMotion);
 
-  const previewActionSubmit = useCallback(
-    async (request: NimbiActionRequest): Promise<NimbiActionResult> => ({
-      accepted: true,
-      response:
-        request.type === "reply"
-          ? "Got it. I'll keep going."
-          : "Started. I'll keep an eye on it.",
-      sessionId:
-        request.type === "reply" ? request.sessionId : "nimbi-preview-session",
-    }),
-    [],
-  );
   const actions = useNimbiActions({
     snapshot: currentSnapshot,
-    submit: actionSubmit ?? (nativeRuntime ? undefined : previewActionSubmit),
+    submit: actionSubmit,
   });
 
   const machineRef = useRef<IslandMachine | null>(null);
