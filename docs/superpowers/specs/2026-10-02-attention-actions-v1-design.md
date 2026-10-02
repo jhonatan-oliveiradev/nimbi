@@ -197,6 +197,18 @@ The React layer calls a Tauri command. It does not fetch the NX Agent endpoint d
 
 The Rust action client is responsible for transport, validation, timeout, and loopback-only enforcement.
 
+### 5.1 External NX Agent dependency
+
+The current Nimbi repository does not contain an NX Agent/JARVIS action endpoint and no connected repository exposes one in the current project context.
+
+Therefore this feature has an explicit external dependency:
+- NX Agent must expose a loopback action endpoint compatible with the request/result contract above before end-to-end execution can be considered complete;
+- Nimbi must never fake acceptance when that endpoint is unavailable;
+- until the production endpoint exists, implementation and tests may use a local test server/fixture transport only;
+- the shipped runtime must surface `unavailable` rather than silently falling back to another executor.
+
+The Rust client must read its base URL from an internal native configuration/environment source such as `NIMBI_NX_AGENT_BASE_URL`. The browser layer cannot set or override that URL.
+
 ## 6. Action UI state
 
 The interaction layer should use a small explicit state model:
@@ -245,13 +257,13 @@ Requirements:
 - no provider API keys in Nimbi;
 - no direct provider calls;
 - `reply` requires a non-empty `sessionId`;
-- request text must be trimmed and bounded to a fixed maximum length;
-- transport uses a short timeout;
+- request text must be trimmed and bounded to `8,000` UTF-8 characters;
+- transport request timeout is `5,000 ms`;
 - malformed or rejected responses become typed action errors;
 - NX Agent remains responsible for capability-scoped execution and side-effect authorization;
 - Nimbi remains default-deny for any capability it does not explicitly understand.
 
-The exact local NX Agent route may be configurable internally, but the browser layer must not control it.
+The route path may remain an internal native configuration detail until NX Agent publishes its concrete endpoint contract; the browser layer must not control it.
 
 ## 9. Interaction controller
 
