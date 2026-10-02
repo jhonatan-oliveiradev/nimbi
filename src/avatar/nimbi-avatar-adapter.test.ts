@@ -55,6 +55,29 @@ describe("Nimbi avatar adapter", () => {
       kind: "expression",
       key: "joyful-wide",
     });
+
+    for (const behavior of [
+      "idle",
+      "notice",
+      "listening",
+      "thinking",
+      "searching",
+      "working",
+      "complete",
+      "needs-input",
+      "error",
+      "tap",
+      "grab",
+      "dragging",
+      "release",
+    ] as const) {
+      const target = targetForBehavior(behavior, true);
+      if (target.kind !== "expression") throw new Error("reduced target must be an expression");
+      expect(NIMBI_CLOUDEE_DEFINITION.expressions[target.key]?.motion).toEqual({
+        eyes: "none",
+        body: "none",
+      });
+    }
   });
 
   it("keeps every configured target valid for the shipped Cloudee definition", () => {
