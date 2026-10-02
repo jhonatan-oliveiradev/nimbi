@@ -448,6 +448,7 @@ export function DynamicIsland({
       data-behavior={resolvedBehavior}
       data-reduced-motion={String(reducedMotion)}
       data-action-state={actionState.status}
+      data-action-open={String(showActionSurface)}
       className="nimbi-island"
       aria-label="Nimbi"
       initial={false}
