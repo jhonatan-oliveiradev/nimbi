@@ -22,10 +22,21 @@ describe("NimbiApp", () => {
     expect(island).toHaveAttribute("data-behavior", "notice");
   });
 
-  it("opens the general composer when idle Nimbi is clicked", () => {
+  it("keeps presence controls accessible from the island shell", async () => {
     render(<NimbiApp snapshot={NIMBI_FIXTURES.idle} reducedMotion />);
 
     fireEvent.click(screen.getByTestId("nimbi-island"));
+
+    expect(
+      await screen.findByRole("slider", { name: "Nimbi opacity" }),
+    ).toBeInTheDocument();
+    expect(screen.queryByRole("textbox", { name: "Ask Nimbi" })).toBeNull();
+  });
+
+  it("opens the general composer when idle Nimbi is clicked", () => {
+    render(<NimbiApp snapshot={NIMBI_FIXTURES.idle} reducedMotion />);
+
+    fireEvent.click(screen.getByTestId("nimbi-character"));
 
     expect(screen.getByRole("textbox", { name: "Ask Nimbi" })).toBeInTheDocument();
     expect(screen.getByTestId("nimbi-avatar")).toBeInTheDocument();
@@ -44,7 +55,7 @@ describe("NimbiApp", () => {
       />,
     );
 
-    fireEvent.click(screen.getByTestId("nimbi-island"));
+    fireEvent.click(screen.getByTestId("nimbi-character"));
     const input = screen.getByRole("textbox", { name: "Ask Nimbi" });
     fireEvent.change(input, { target: { value: "check build" } });
     fireEvent.keyDown(input, { key: "Enter" });
@@ -71,7 +82,7 @@ describe("NimbiApp", () => {
       />,
     );
 
-    fireEvent.click(screen.getByTestId("nimbi-island"));
+    fireEvent.click(screen.getByTestId("nimbi-character"));
     const input = screen.getByRole("textbox", { name: "Ask Nimbi" });
     fireEvent.change(input, { target: { value: "work" } });
     fireEvent.keyDown(input, { key: "Enter" });
