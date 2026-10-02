@@ -1,4 +1,4 @@
-import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { act, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { NIMBI_FIXTURES } from "../telemetry/fixtures";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 const invokeMock = vi.hoisted(() => vi.fn());
@@ -138,6 +138,21 @@ describe("NimbiApp", () => {
     expect(await screen.findByText("Claude needs your attention")).toBeInTheDocument();
     expect(screen.getByRole("textbox", { name: "Reply to Claude" })).toBeInTheDocument();
     expect(screen.queryByText("Starting.")).toBeNull();
+  });
+
+  it("collapses the composer when the window loses focus", async () => {
+    render(<NimbiApp snapshot={NIMBI_FIXTURES.idle} reducedMotion />);
+
+    fireEvent.click(screen.getByTestId("nimbi-character"));
+    expect(screen.getByRole("textbox", { name: "Ask Nimbi" })).toBeInTheDocument();
+
+    act(() => {
+      window.dispatchEvent(new Event("blur"));
+    });
+
+    await waitFor(() =>
+      expect(screen.queryByRole("textbox", { name: "Ask Nimbi" })).toBeNull(),
+    );
   });
 
   it("restores native passive interaction after closing the composer", async () => {
