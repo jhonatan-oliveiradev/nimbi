@@ -167,7 +167,9 @@ impl NxAgentClient {
             .ok_or_else(|| ActionError::unavailable("NX Agent is not configured"))?;
 
         let response = self.client.post(endpoint).json(&request).send().await.map_err(|error| {
-            if error.is_timeout() {
+            if error.is_connect() {
+                ActionError::unavailable("NX Agent is unavailable")
+            } else if error.is_timeout() {
                 ActionError::new(ActionErrorCode::Timeout, "NX Agent request timed out")
             } else {
                 ActionError::unavailable("NX Agent is unavailable")
