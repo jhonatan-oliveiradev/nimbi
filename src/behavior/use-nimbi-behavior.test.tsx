@@ -129,6 +129,64 @@ describe("useNimbiBehavior", () => {
     expect(result.current.behavior).toBe("thinking");
   });
 
+  it("maps action composition and sending into companion behavior", () => {
+    const { result, rerender } = renderHook(
+      ({ actionStatus }) =>
+        useNimbiBehavior({
+          activity: "idle",
+          islandOpen: true,
+          reducedMotion: false,
+          actionStatus,
+        }),
+      { initialProps: { actionStatus: "composing" as const } },
+    );
+
+    expect(result.current.behavior).toBe("listening");
+
+    rerender({ actionStatus: "sending" as const });
+    expect(result.current.behavior).toBe("thinking");
+
+    rerender({ actionStatus: "error" as const });
+    expect(result.current.behavior).toBe("error");
+  });
+
+  it("keeps real attention above composing but action transport error above attention", () => {
+    const { result, rerender } = renderHook(
+      ({ actionStatus }) =>
+        useNimbiBehavior({
+          activity: "needs-input",
+          islandOpen: true,
+          reducedMotion: false,
+          actionStatus,
+        }),
+      { initialProps: { actionStatus: "composing" as const } },
+    );
+
+    expect(result.current.behavior).toBe("needs-input");
+
+    rerender({ actionStatus: "error" as const });
+    expect(result.current.behavior).toBe("error");
+  });
+
+  it("uses a brief complete reaction for a short action response", () => {
+    const { result, rerender } = renderHook(
+      ({ actionStatus }) =>
+        useNimbiBehavior({
+          activity: "idle",
+          islandOpen: true,
+          reducedMotion: false,
+          actionStatus,
+        }),
+      { initialProps: { actionStatus: "sending" as const } },
+    );
+
+    rerender({ actionStatus: "response" as const });
+    expect(result.current.behavior).toBe("complete");
+
+    act(() => vi.advanceTimersByTime(COMPLETE_REACTION_MS));
+    expect(result.current.behavior).toBe("listening");
+  });
+
   it("keeps semantic priority unchanged under reduced motion", () => {
     const { result, rerender } = renderHook(
       ({ reducedMotion }) =>
