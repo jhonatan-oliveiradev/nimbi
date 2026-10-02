@@ -104,14 +104,24 @@ For explicit local testing only, the RunOptic base URL can be overridden with `N
 
 Attention & Actions v1 keeps command execution in NX Agent/JARVIS. Nimbi only submits a normalized action request through the native Tauri layer.
 
-The native client is configured with:
+By default, the native client connects to the NX Agent daemon at:
+
+```text
+http://127.0.0.1:4317/v1/actions
+```
+
+The loopback location can be overridden natively with:
 
 ```text
 NIMBI_NX_AGENT_BASE_URL
 NIMBI_NX_AGENT_ACTION_PATH
 ```
 
-Both values are required for the production action channel. The base URL must resolve to loopback HTTP(S): `127.0.0.1`, `localhost`, or `::1`. Nimbi does not guess a route when either value is missing; the action surface reports NX Agent as unavailable instead. The browser preview uses a dev-only fixture submitter and never changes the native endpoint.
+The base URL must remain loopback HTTP(S): `127.0.0.1`, `localhost`, or `::1`. Invalid non-loopback overrides fail closed.
+
+If the NX Agent daemon uses `NX_AGENT_DAEMON_TOKEN`, configure the same secret for Nimbi through `NIMBI_NX_AGENT_TOKEN`. Rust adds it as a Bearer authorization header; the token is never passed to the React/WebView layer.
+
+The browser preview uses a dev-only fixture submitter and never changes the native endpoint or token.
 
 Nimbi never needs provider API keys.
 
