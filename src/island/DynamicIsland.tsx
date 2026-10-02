@@ -551,7 +551,7 @@ export function DynamicIsland({
             </span>
           ) : null}
 
-          {visualMode === "attention" && fixtureOnly ? (
+          {visualMode === "attention" && fixtureOnly && !showActionSurface ? (
             <div className="nimbi-island__fixture-actions" aria-label="Preview actions">
               <button type="button" disabled>
                 Deny
@@ -585,6 +585,10 @@ export function DynamicIsland({
                     placeholder={actionMode === "contextual" ? "Reply…" : "Ask Nimbi…"}
                     value={actionDraft}
                     rows={1}
+                    autoFocus={actionState.status === "composing"}
+                    onPointerDown={() => {
+                      if (contextualIdle) onActionOpen?.("contextual");
+                    }}
                     onFocus={() => {
                       if (contextualIdle) onActionOpen?.("contextual");
                     }}
