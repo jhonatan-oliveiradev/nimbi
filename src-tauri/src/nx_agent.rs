@@ -4,6 +4,8 @@ use serde::{Deserialize, Serialize};
 
 pub const MAX_ACTION_TEXT_LENGTH: usize = 8_000;
 pub const ACTION_TIMEOUT_MS: u64 = 5_000;
+pub const DEFAULT_NX_AGENT_BASE_URL: &str = "http://127.0.0.1:4317";
+pub const DEFAULT_NX_AGENT_ACTION_PATH: &str = "/v1/actions";
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 #[serde(tag = "type", rename_all = "kebab-case")]
@@ -103,23 +105,26 @@ impl ActionError {
 pub struct NxAgentClient {
     client: reqwest::Client,
     endpoint: Option<String>,
+    token: Option<String>,
 }
 
 impl Default for NxAgentClient {
     fn default() -> Self {
         let base_url = std::env::var("NIMBI_NX_AGENT_BASE_URL")
             .ok()
-            .filter(|value| !value.trim().is_empty());
+            .filter(|value| !value.trim().is_empty())
+            .unwrap_or_else(|| DEFAULT_NX_AGENT_BASE_URL.into());
         let action_path = std::env::var("NIMBI_NX_AGENT_ACTION_PATH")
             .ok()
-            .filter(|value| !value.trim().is_empty());
+            .filter(|value| !value.trim().is_empty())
+            .unwrap_or_else(|| DEFAULT_NX_AGENT_ACTION_PATH.into());
+        let token = std::env::var("NIMBI_NX_AGENT_TOKEN")
+            .ok()
+            .map(|value| value.trim().to_string())
+            .filter(|value| !value.is_empty());
 
-        match (base_url, action_path) {
-            (Some(base_url), Some(action_path)) => {
-                Self::with_endpoint(base_url, action_path).unwrap_or_else(|_| Self::unavailable())
-            }
-            _ => Self::unavailable(),
-        }
+        Self::with_endpoint_and_token(base_url, action_path, token)
+            .unwrap_or_else(|_| Self::unavailable())
     }
 }
 
@@ -128,12 +133,21 @@ impl NxAgentClient {
         Self {
             client: build_client(),
             endpoint: None,
+            token: None,
         }
     }
 
     pub fn with_endpoint(
         base_url: impl Into<String>,
         action_path: impl AsRef<str>,
+    ) -> Result<Self, ActionError> {
+        Self::with_endpoint_and_token(base_url, action_path, None)
+    }
+
+    pub fn with_endpoint_and_token(
+        base_url: impl Into<String>,
+        action_path: impl AsRef<str>,
+        token: Option<String>,
     ) -> Result<Self, ActionError> {
         let base_url = base_url.into();
         let base_url = base_url.trim_end_matches('/');
@@ -153,6 +167,9 @@ impl NxAgentClient {
         Ok(Self {
             client: build_client(),
             endpoint: Some(format!("{base_url}{action_path}")),
+            token: token
+                .map(|value| value.trim().to_string())
+                .filter(|value| !value.is_empty()),
         })
     }
 
@@ -166,7 +183,12 @@ impl NxAgentClient {
             .as_ref()
             .ok_or_else(|| ActionError::unavailable("NX Agent is not configured"))?;
 
-        let response = self.client.post(endpoint).json(&request).send().await.map_err(|error| {
+        let mut pending = self.client.post(endpoint).json(&request);
+        if let Some(token) = self.token.as_deref() {
+            pending = pending.bearer_auth(token);
+        }
+
+        let response = pending.send().await.map_err(|error| {
             if error.is_connect() {
                 ActionError::unavailable("NX Agent is unavailable")
             } else if error.is_timeout() {
